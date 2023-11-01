@@ -1,0 +1,33 @@
+From 5d197a9a4c0f456243894aea4b5fd059ecf6c402 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Tue, 7 Jun 2022 18:07:00 +0200
+Subject: [PATCH] arptables: Support -x/--exact flag
+
+Legacy arptables accepts but ignores the flag. Yet there are remains of
+the functionality in sources, like OPT_EXPANDED define and a print_num()
+function which acts on FMT_KILOMEGAGIGA flag being set or not. So
+instead of mimicking legacy behaviour by explicitly ignoring -x flag for
+arptables, just enable the feature for it.
+
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 24c5b593156de29a49146bcc3497ebb7d8d40ef0)
+---
+ iptables/xshared.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/iptables/xshared.h b/iptables/xshared.h
+index 14568bb00fb65..a50c8b7298072 100644
+--- a/iptables/xshared.h
++++ b/iptables/xshared.h
+@@ -69,7 +69,7 @@ struct xtables_target;
+ 
+ #define OPTSTRING_COMMON "-:A:C:D:E:F::I:L::M:N:P:VX::Z::" "c:d:i:j:o:p:s:t:"
+ #define IPT_OPTSTRING	OPTSTRING_COMMON "R:S::W::" "46bfg:h::m:nvw::x"
+-#define ARPT_OPTSTRING	OPTSTRING_COMMON "R:S::" "h::l:nv" /* "m:" */
++#define ARPT_OPTSTRING	OPTSTRING_COMMON "R:S::" "h::l:nvx" /* "m:" */
+ #define EBT_OPTSTRING	OPTSTRING_COMMON "hv"
+ 
+ /* define invflags which won't collide with IPT ones */
+-- 
+2.34.1
+

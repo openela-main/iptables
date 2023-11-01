@@ -1,0 +1,334 @@
+From 7ef75f20c338d0f09b50633aa0d5d83c868015ab Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Thu, 17 Jun 2021 18:44:28 +0200
+Subject: [PATCH] doc: Add deprecation notices to all relevant man pages
+
+This is RHEL9 trying to friendly kick people towards nftables.
+---
+ iptables/arptables-nft-restore.8       | 13 ++++++++++++-
+ iptables/arptables-nft-save.8          | 14 +++++++++++++-
+ iptables/arptables-nft.8               | 19 ++++++++++++++++++-
+ iptables/ebtables-nft.8                | 15 ++++++++++++++-
+ iptables/iptables-apply.8.in           | 14 +++++++++++++-
+ iptables/iptables-extensions.8.tmpl.in | 14 ++++++++++++++
+ iptables/iptables-restore.8.in         | 17 ++++++++++++++++-
+ iptables/iptables-save.8.in            | 15 ++++++++++++++-
+ iptables/iptables.8.in                 | 17 +++++++++++++++++
+ iptables/xtables-monitor.8.in          | 11 +++++++++++
+ 10 files changed, 142 insertions(+), 7 deletions(-)
+
+diff --git a/iptables/arptables-nft-restore.8 b/iptables/arptables-nft-restore.8
+index 09d9082cf9fd3..b1bf02998f9cc 100644
+--- a/iptables/arptables-nft-restore.8
++++ b/iptables/arptables-nft-restore.8
+@@ -24,6 +24,17 @@ arptables-restore \- Restore ARP Tables (nft-based)
+ .SH SYNOPSIS
+ \fBarptables\-restore
+ .SH DESCRIPTION
++This tool is
++.B deprecated
++in Red Hat Enterprise Linux. It is maintenance only and will not receive new
++features. New setups should use
++.BR nft (8).
++Existing setups should migrate to
++.BR nft (8)
++when possible. See
++.UR https://red.ht/nft_your_tables
++.UE
++for details.
+ .PP
+ .B arptables-restore
+ is used to restore ARP Tables from data specified on STDIN or
+@@ -35,5 +46,5 @@ flushes (deletes) all previous contents of the respective ARP Table.
+ .SH AUTHOR
+ Jesper Dangaard Brouer <brouer@redhat.com>
+ .SH SEE ALSO
+-\fBarptables\-save\fP(8), \fBarptables\fP(8)
++\fBarptables\-save\fP(8), \fBarptables\fP(8), \fBnft\fP(8)
+ .PP
+diff --git a/iptables/arptables-nft-save.8 b/iptables/arptables-nft-save.8
+index 905e59854cc28..49bb0f6260f2f 100644
+--- a/iptables/arptables-nft-save.8
++++ b/iptables/arptables-nft-save.8
+@@ -27,6 +27,18 @@ arptables-save \- dump arptables rules to stdout (nft-based)
+ \fBarptables\-save\fP [\fB\-V\fP]
+ .SH DESCRIPTION
+ .PP
++This tool is
++.B deprecated
++in Red Hat Enterprise Linux. It is maintenance only and will not receive new
++features. New setups should use
++.BR nft (8).
++Existing setups should migrate to
++.BR nft (8)
++when possible. See
++.UR https://red.ht/nft_your_tables
++.UE
++for details.
++.PP
+ .B arptables-save
+ is used to dump the contents of an ARP Table in easily parseable format
+ to STDOUT. Use I/O-redirection provided by your shell to write to a file.
+@@ -43,5 +55,5 @@ Print version information and exit.
+ .SH AUTHOR
+ Jesper Dangaard Brouer <brouer@redhat.com>
+ .SH SEE ALSO
+-\fBarptables\-restore\fP(8), \fBarptables\fP(8)
++\fBarptables\-restore\fP(8), \fBarptables\fP(8), \fBnft\fP(8)
+ .PP
+diff --git a/iptables/arptables-nft.8 b/iptables/arptables-nft.8
+index ea31e0842acd4..ec5b993a41e8b 100644
+--- a/iptables/arptables-nft.8
++++ b/iptables/arptables-nft.8
+@@ -39,6 +39,19 @@ arptables \- ARP table administration (nft-based)
+ .BR "arptables " [ "-t table" ] " -P chain target " [ options ]
+ 
+ .SH DESCRIPTION
++.PP
++This tool is
++.B deprecated
++in Red Hat Enterprise Linux. It is maintenance only and will not receive new
++features. New setups should use
++.BR nft (8).
++Existing setups should migrate to
++.BR nft (8)
++when possible. See
++.UR https://red.ht/nft_your_tables
++.UE
++for details.
++.PP
+ .B arptables
+ is a user space tool, it is used to set up and maintain the
+ tables of ARP rules in the Linux kernel. These rules inspect
+@@ -340,9 +353,13 @@ bridges, the same may be achieved using
+ chain in
+ .BR ebtables .
+ 
++This tool is deprecated in Red Hat Enterprise Linux. It is maintenance only and
++will not receive new features. New setups should use \fBnft\fP(8). Existing
++setups should migrate to \fBnft\fP(8) when possible.
++
+ .SH MAILINGLISTS
+ .BR "" "See " http://netfilter.org/mailinglists.html
+ .SH SEE ALSO
+-.BR xtables-nft "(8), " iptables "(8), " ebtables "(8), " ip (8)
++.BR xtables-nft "(8), " iptables "(8), " ebtables "(8), " ip "(8), " nft (8)
+ .PP
+ .BR "" "See " https://wiki.nftables.org
+diff --git a/iptables/ebtables-nft.8 b/iptables/ebtables-nft.8
+index d75aae240bc05..ed1bf8f2db55b 100644
+--- a/iptables/ebtables-nft.8
++++ b/iptables/ebtables-nft.8
+@@ -46,6 +46,19 @@ ebtables \- Ethernet bridge frame table administration (nft-based)
+ .br
+ 
+ .SH DESCRIPTION
++.PP
++This tool is
++.B deprecated
++in Red Hat Enterprise Linux. It is maintenance only and will not receive new
++features. New setups should use
++.BR nft (8).
++Existing setups should migrate to
++.BR nft (8)
++when possible. See
++.UR https://red.ht/nft_your_tables
++.UE
++for details.
++.PP
+ .B ebtables
+ is an application program used to set up and maintain the
+ tables of rules (inside the Linux kernel) that inspect
+@@ -1069,6 +1082,6 @@ has not been implemented, although
+ might replace them entirely given the inherent atomicity of nftables.
+ Finally, this list is probably not complete.
+ .SH SEE ALSO
+-.BR xtables-nft "(8), " iptables "(8), " ip (8)
++.BR xtables-nft "(8), " iptables "(8), " ip "(8), " nft (8)
+ .PP
+ .BR "" "See " https://wiki.nftables.org
+diff --git a/iptables/iptables-apply.8.in b/iptables/iptables-apply.8.in
+index f0ed4e5f8d450..7f99a21ed2b61 100644
+--- a/iptables/iptables-apply.8.in
++++ b/iptables/iptables-apply.8.in
+@@ -11,6 +11,18 @@ iptables-apply \- a safer way to update iptables remotely
+ \fBiptables\-apply\fP [\-\fBhV\fP] [\fB-t\fP \fItimeout\fP] [\fB-w\fP \fIsavefile\fP] {[\fIrulesfile]|-c [runcmd]}\fP
+ .SH "DESCRIPTION"
+ .PP
++This tool is
++.B deprecated
++in Red Hat Enterprise Linux. It is maintenance only and will not receive new
++features. New setups should use
++.BR nft (8).
++Existing setups should migrate to
++.BR nft (8)
++when possible. See
++.UR https://red.ht/nft_your_tables
++.UE
++for details.
++.PP
+ iptables\-apply will try to apply a new rulesfile (as output by
+ iptables-save, read by iptables-restore) or run a command to configure
+ iptables and then prompt the user whether the changes are okay. If the
+@@ -47,7 +59,7 @@ Display usage information.
+ Display version information.
+ .SH "SEE ALSO"
+ .PP
+-\fBiptables-restore\fP(8), \fBiptables-save\fP(8), \fBiptables\fR(8).
++\fBiptables-restore\fP(8), \fBiptables-save\fP(8), \fBiptables\fR(8), \fBnft\fP(8).
+ .SH LEGALESE
+ .PP
+ Original iptables-apply - Copyright 2006 Martin F. Krafft <madduck@madduck.net>.
+diff --git a/iptables/iptables-extensions.8.tmpl.in b/iptables/iptables-extensions.8.tmpl.in
+index 99d89a1fe44ad..73d40bbfe9c52 100644
+--- a/iptables/iptables-extensions.8.tmpl.in
++++ b/iptables/iptables-extensions.8.tmpl.in
+@@ -7,6 +7,20 @@ iptables-extensions \(em list of extensions in the standard iptables distributio
+ .PP
+ \fBiptables\fP [\fB\-m\fP \fIname\fP [\fImodule-options\fP...]]
+ [\fB\-j\fP \fItarget-name\fP [\fItarget-options\fP...]
++.SH DESCRIPTION
++These tools are
++.B deprecated
++in Red Hat Enterprise Linux. They are maintenance only and will not receive new
++features. New setups should use
++.BR nft (8).
++Existing setups should migrate to
++.BR nft (8)
++when possible. See
++.UR https://red.ht/nft_your_tables
++.UE
++for details. There is also
++.BR iptables\-translate (8)/ ip6tables\-translate (8)
++to help with the migration.
+ .SH MATCH EXTENSIONS
+ iptables can use extended packet matching modules
+ with the \fB\-m\fP or \fB\-\-match\fP
+diff --git a/iptables/iptables-restore.8.in b/iptables/iptables-restore.8.in
+index 20216842d8358..8f4811c72f2ec 100644
+--- a/iptables/iptables-restore.8.in
++++ b/iptables/iptables-restore.8.in
+@@ -31,6 +31,19 @@ ip6tables-restore \(em Restore IPv6 Tables
+ [\fB\-W\fP \fIusecs\fP] [\fB\-M\fP \fImodprobe\fP] [\fB\-T\fP \fIname\fP]
+ [\fBfile\fP]
+ .SH DESCRIPTION
++These tools are
++.B deprecated
++in Red Hat Enterprise Linux. They are maintenance only and will not receive new
++features. New setups should use
++.BR nft (8).
++Existing setups should migrate to
++.BR nft (8)
++when possible. See
++.UR https://red.ht/nft_your_tables
++.UE
++for details. There is also
++.BR iptables\-restore\-translate (8)/ ip6tables\-restore\-translate (8)
++to help with the migration.
+ .PP
+ .B iptables-restore
+ and
+@@ -81,7 +94,9 @@ from Rusty Russell.
+ .br
+ Andras Kis-Szabo <kisza@sch.bme.hu> contributed ip6tables-restore.
+ .SH SEE ALSO
+-\fBiptables\-apply\fP(8),\fBiptables\-save\fP(8), \fBiptables\fP(8)
++\fBiptables\-apply\fP(8), \fBiptables\-save\fP(8), \fBiptables\fP(8),
++\fBnft\fP(8), \fBiptables\-restore\-translate\fP(8),
++\fBip6tables\-restore\-translate\fP(8)
+ .PP
+ The iptables-HOWTO, which details more iptables usage, the NAT-HOWTO,
+ which details NAT, and the netfilter-hacking-HOWTO which details the
+diff --git a/iptables/iptables-save.8.in b/iptables/iptables-save.8.in
+index 7683fd3780f72..6fe50b2d446e5 100644
+--- a/iptables/iptables-save.8.in
++++ b/iptables/iptables-save.8.in
+@@ -30,6 +30,18 @@ ip6tables-save \(em dump iptables rules
+ [\fB\-t\fP \fItable\fP] [\fB\-f\fP \fIfilename\fP]
+ .SH DESCRIPTION
+ .PP
++These tools are
++.B deprecated
++in Red Hat Enterprise Linux. They are maintenance only and will not receive new
++features. New setups should use
++.BR nft (8).
++Existing setups should migrate to
++.BR nft (8)
++when possible. See
++.UR https://red.ht/nft_your_tables
++.UE
++for details.
++.PP
+ .B iptables-save
+ and
+ .B ip6tables-save
+@@ -62,7 +74,8 @@ Rusty Russell <rusty@rustcorp.com.au>
+ .br
+ Andras Kis-Szabo <kisza@sch.bme.hu> contributed ip6tables-save.
+ .SH SEE ALSO
+-\fBiptables\-apply\fP(8),\fBiptables\-restore\fP(8), \fBiptables\fP(8)
++\fBiptables\-apply\fP(8),\fBiptables\-restore\fP(8), \fBiptables\fP(8),
++\fBnft\fP(8)
+ .PP
+ The iptables-HOWTO, which details more iptables usage, the NAT-HOWTO,
+ which details NAT, and the netfilter-hacking-HOWTO which details the
+diff --git a/iptables/iptables.8.in b/iptables/iptables.8.in
+index 627ff0e4da7a4..a8b31206d45b2 100644
+--- a/iptables/iptables.8.in
++++ b/iptables/iptables.8.in
+@@ -55,6 +55,20 @@ match = \fB\-m\fP \fImatchname\fP [\fIper-match-options\fP]
+ .PP
+ target = \fB\-j\fP \fItargetname\fP [\fIper\-target\-options\fP]
+ .SH DESCRIPTION
++These tools are
++.B deprecated
++in Red Hat Enterprise Linux. They are maintenance only and will not receive new
++features. New setups should use
++.BR nft (8).
++Existing setups should migrate to
++.BR nft (8)
++when possible. See
++.UR https://red.ht/nft_your_tables
++.UE
++for details. There is also
++.BR iptables\-translate (8)/ ip6tables\-translate (8)
++to help with the migration.
++.PP
+ \fBIptables\fP and \fBip6tables\fP are used to set up, maintain, and inspect the
+ tables of IPv4 and IPv6 packet
+ filter rules in the Linux kernel.  Several different tables
+@@ -447,6 +461,9 @@ There are several other changes in iptables.
+ \fBiptables\-save\fP(8),
+ \fBiptables\-restore\fP(8),
+ \fBiptables\-extensions\fP(8),
++\fBnft\fP(8),
++\fBiptables\-translate\fP(8),
++\fBip6tables\-translate\fP(8)
+ .PP
+ The packet-filtering-HOWTO details iptables usage for
+ packet filtering, the NAT-HOWTO details NAT,
+diff --git a/iptables/xtables-monitor.8.in b/iptables/xtables-monitor.8.in
+index a7f22c0d8c08e..e21d7ff23035f 100644
+--- a/iptables/xtables-monitor.8.in
++++ b/iptables/xtables-monitor.8.in
+@@ -6,6 +6,17 @@ xtables-monitor \(em show changes to rule set and trace-events
+ .PP
+ \
+ .SH DESCRIPTION
++This tool is
++.B deprecated
++in Red Hat Enterprise Linux. It is maintenance only and will not receive new
++features. New setups should use
++.BR nft (8).
++Existing setups should migrate to
++.BR nft (8)
++when possible. See
++.UR https://red.ht/nft_your_tables
++.UE
++for details.
+ .PP
+ .B xtables-monitor
+ is used to monitor changes to the ruleset or to show rule evaluation events
+-- 
+2.34.1
+

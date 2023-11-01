@@ -1,0 +1,43 @@
+From 40e7bc3055f9bc34ccb6327f1f32c2fc524fb693 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Tue, 18 Feb 2020 16:43:16 +0100
+Subject: [PATCH] iptables-test.py: Fix --host mode
+
+In some cases, the script still called repo binaries. Avoid this when in
+--host mode to allow testing without the need to compile sources in
+beforehand.
+
+Fixes: 1b5d762c1865e ("iptables-test: Support testing host binaries")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit ba2af278e8836977a8cfb35c54dac60ca9b40000)
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ iptables-test.py | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/iptables-test.py b/iptables-test.py
+index fdb4e6a3644e4..e986d7a318218 100755
+--- a/iptables-test.py
++++ b/iptables-test.py
+@@ -119,8 +119,7 @@ def run_test(iptables, rule, rule_save, res, filename, lineno, netns):
+         elif splitted[0] == EBTABLES:
+             command = EBTABLES_SAVE
+ 
+-    path = os.path.abspath(os.path.curdir) + "/iptables/" + EXECUTEABLE
+-    command = path + " " + command
++    command = EXECUTEABLE + " " + command
+ 
+     if netns:
+             command = "ip netns exec ____iptables-container-test " + command
+@@ -165,7 +164,7 @@ def execute_cmd(cmd, filename, lineno):
+     '''
+     global log_file
+     if cmd.startswith('iptables ') or cmd.startswith('ip6tables ') or cmd.startswith('ebtables ') or cmd.startswith('arptables '):
+-        cmd = os.path.abspath(os.path.curdir) + "/iptables/" + EXECUTEABLE + " " + cmd
++        cmd = EXECUTEABLE + " " + cmd
+ 
+     print("command: {}".format(cmd), file=log_file)
+     ret = subprocess.call(cmd, shell=True, universal_newlines=True,
+-- 
+2.25.1
+

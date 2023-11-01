@@ -1,0 +1,31 @@
+From 5ee8338b9f1b5c02efca1a33185cf648cdf1aa20 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Thu, 5 Dec 2019 11:40:26 +0100
+Subject: [PATCH] xtables-restore: Avoid access of uninitialized data
+
+When flushing, 'buffer' is not written to prior to checking its first
+byte's value. Therefore it needs to be initialized upon declaration.
+
+Fixes: 09cb517949e69 ("xtables-restore: Improve performance of --noflush operation")
+(cherry picked from commit 48be21bf39f9af35d53af0e211cbd50dcfd12d08)
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ iptables/xtables-restore.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/iptables/xtables-restore.c b/iptables/xtables-restore.c
+index dd907e0b8ddd5..63cc15cee9621 100644
+--- a/iptables/xtables-restore.c
++++ b/iptables/xtables-restore.c
+@@ -281,7 +281,7 @@ void xtables_restore_parse(struct nft_handle *h,
+ 			   const struct nft_xt_restore_parse *p)
+ {
+ 	struct nft_xt_restore_state state = {};
+-	char preload_buffer[PREBUFSIZ] = {}, buffer[10240], *ptr;
++	char preload_buffer[PREBUFSIZ] = {}, buffer[10240] = {}, *ptr;
+ 
+ 	if (!h->noflush) {
+ 		nft_fake_cache(h);
+-- 
+2.24.0
+

@@ -1,0 +1,119 @@
+From 5d6c1effe324d1a2401a4315895fe72c7255a14d Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Tue, 1 Mar 2022 19:46:21 +0100
+Subject: [PATCH] nft: Speed up immediate parsing
+
+Parsing of rules which jump to a chain pointlessly causes a call to
+xtables_find_target() despite the code already knowing the outcome.
+
+Avoid the significant delay for rulesets with many chain jumps by
+performing the (standard) target lookup only for accept/drop/return
+verdicts.
+
+From a biased test-case on my VM:
+
+| # iptables-nft-save | grep -c -- '-j'
+| 133943
+| # time ./old/iptables-nft-save >/dev/null
+| real	0m45.566s
+| user	0m1.308s
+| sys	0m8.430s
+| # time ./new/iptables-nft-save >/dev/null
+| real	0m3.547s
+| user	0m0.762s
+| sys	0m2.476s
+
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+Acked-by: Florian Westphal <fw@strlen.de>
+(cherry picked from commit 07ee529f5a62838d68be59683be99bf6a7cda0f2)
+---
+ iptables/nft-bridge.c |  1 +
+ iptables/nft-shared.c | 37 ++++++++++++++++++-------------------
+ 2 files changed, 19 insertions(+), 19 deletions(-)
+
+diff --git a/iptables/nft-bridge.c b/iptables/nft-bridge.c
+index e00a19e843d93..3fd03fb8de4ff 100644
+--- a/iptables/nft-bridge.c
++++ b/iptables/nft-bridge.c
+@@ -530,6 +530,7 @@ static void nft_bridge_parse_target(struct xtables_target *t, void *data)
+ 	}
+ 
+ 	cs->target = t;
++	cs->jumpto = t->name;
+ }
+ 
+ static void nft_rule_to_ebtables_command_state(struct nft_handle *h,
+diff --git a/iptables/nft-shared.c b/iptables/nft-shared.c
+index 172cf2054a33c..d73d0b6159be6 100644
+--- a/iptables/nft-shared.c
++++ b/iptables/nft-shared.c
+@@ -511,6 +511,8 @@ static void nft_parse_immediate(struct nft_xt_ctx *ctx, struct nftnl_expr *e)
+ {
+ 	const char *chain = nftnl_expr_get_str(e, NFTNL_EXPR_IMM_CHAIN);
+ 	struct iptables_command_state *cs = ctx->cs;
++	struct xt_entry_target *t;
++	uint32_t size;
+ 	int verdict;
+ 
+ 	if (nftnl_expr_is_set(e, NFTNL_EXPR_IMM_DATA)) {
+@@ -547,8 +549,21 @@ static void nft_parse_immediate(struct nft_xt_ctx *ctx, struct nftnl_expr *e)
+ 		/* fall through */
+ 	case NFT_JUMP:
+ 		cs->jumpto = chain;
+-		break;
++		/* fall through */
++	default:
++		return;
+ 	}
++
++	cs->target = xtables_find_target(cs->jumpto, XTF_TRY_LOAD);
++	if (!cs->target)
++		return;
++
++	size = XT_ALIGN(sizeof(struct xt_entry_target)) + cs->target->size;
++	t = xtables_calloc(1, size);
++	t->u.target_size = size;
++	t->u.user.revision = cs->target->revision;
++	strcpy(t->u.user.name, cs->jumpto);
++	cs->target->t = t;
+ }
+ 
+ static void nft_parse_limit(struct nft_xt_ctx *ctx, struct nftnl_expr *e)
+@@ -676,25 +691,8 @@ void nft_rule_to_iptables_command_state(struct nft_handle *h,
+ 		}
+ 	}
+ 
+-	if (cs->target != NULL) {
+-		cs->jumpto = cs->target->name;
+-	} else if (cs->jumpto != NULL) {
+-		struct xt_entry_target *t;
+-		uint32_t size;
+-
+-		cs->target = xtables_find_target(cs->jumpto, XTF_TRY_LOAD);
+-		if (!cs->target)
+-			return;
+-
+-		size = XT_ALIGN(sizeof(struct xt_entry_target)) + cs->target->size;
+-		t = xtables_calloc(1, size);
+-		t->u.target_size = size;
+-		t->u.user.revision = cs->target->revision;
+-		strcpy(t->u.user.name, cs->jumpto);
+-		cs->target->t = t;
+-	} else {
++	if (!cs->jumpto)
+ 		cs->jumpto = "";
+-	}
+ }
+ 
+ void nft_clear_iptables_command_state(struct iptables_command_state *cs)
+@@ -991,6 +989,7 @@ void nft_ipv46_parse_target(struct xtables_target *t, void *data)
+ 	struct iptables_command_state *cs = data;
+ 
+ 	cs->target = t;
++	cs->jumpto = t->name;
+ }
+ 
+ bool nft_ipv46_rule_find(struct nft_handle *h, struct nftnl_rule *r, void *data)
+-- 
+2.34.1
+

@@ -1,0 +1,37 @@
+From dd98af599516806e2eb3e1186d0ad52ce7c6b4b5 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Tue, 21 Apr 2020 14:10:53 +0200
+Subject: [PATCH] tests: shell: Test -F in dump files
+
+While not really useful, iptables-nft-restore shouldn't segfault either.
+This tests the problem described in nfbz#1407.
+
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit f2ace0cdf25a5911ac84015829d65d6050a5e82d)
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ .../tests/shell/testcases/ipt-restore/0012-dash-F_0  | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
+ create mode 100755 iptables/tests/shell/testcases/ipt-restore/0012-dash-F_0
+
+diff --git a/iptables/tests/shell/testcases/ipt-restore/0012-dash-F_0 b/iptables/tests/shell/testcases/ipt-restore/0012-dash-F_0
+new file mode 100755
+index 0000000000000..fd82afa1bc8ce
+--- /dev/null
++++ b/iptables/tests/shell/testcases/ipt-restore/0012-dash-F_0
+@@ -0,0 +1,12 @@
++#!/bin/bash -e
++
++# make sure -F lines don't cause segfaults
++
++RULESET='*nat
++-F PREROUTING
++-A PREROUTING -j ACCEPT
++-F PREROUTING
++COMMIT'
++
++echo -e "$RULESET" | $XT_MULTI iptables-restore
++echo -e "$RULESET" | $XT_MULTI iptables-restore -n
+-- 
+2.27.0
+

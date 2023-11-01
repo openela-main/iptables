@@ -1,0 +1,52 @@
+From cfcafd3638cdc06a8b4a1d267e58b5ad1e35922c Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Tue, 22 Sep 2020 20:01:15 +0200
+Subject: [PATCH] libxtables: Register multiple extensions in ascending order
+
+The newly introduced ordered insert algorithm in
+xtables_register_{match,target}() works best if extensions of same name
+are passed in ascending revisions. Since this is the case in about all
+extensions' arrays, iterate over them from beginning to end.
+
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit b5f1a3beac1d1f2b96c8be8ebec450f5ea758090)
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ libxtables/xtables.c | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)
+
+diff --git a/libxtables/xtables.c b/libxtables/xtables.c
+index 409128333e0e6..28ffffedd8147 100644
+--- a/libxtables/xtables.c
++++ b/libxtables/xtables.c
+@@ -1095,9 +1095,10 @@ static bool xtables_fully_register_pending_match(struct xtables_match *me,
+ 
+ void xtables_register_matches(struct xtables_match *match, unsigned int n)
+ {
+-	do {
+-		xtables_register_match(&match[--n]);
+-	} while (n > 0);
++	int i;
++
++	for (i = 0; i < n; i++)
++		xtables_register_match(&match[i]);
+ }
+ 
+ void xtables_register_target(struct xtables_target *me)
+@@ -1223,9 +1224,10 @@ static bool xtables_fully_register_pending_target(struct xtables_target *me,
+ 
+ void xtables_register_targets(struct xtables_target *target, unsigned int n)
+ {
+-	do {
+-		xtables_register_target(&target[--n]);
+-	} while (n > 0);
++	int i;
++
++	for (i = 0; i < n; i++)
++		xtables_register_target(&target[i]);
+ }
+ 
+ /* receives a list of xtables_rule_match, release them */
+-- 
+2.28.0
+

@@ -1,0 +1,112 @@
+From 257c18bf4fbcc7e5f4fb3c9cadab699986a9bd41 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Wed, 16 Mar 2022 17:14:07 +0100
+Subject: [PATCH] nft: Reject standard targets as chain names when restoring
+
+Reuse parse_chain() called from do_parse() for '-N' and rename it for a
+better description of what it does.
+
+Note that by itself, this patch will likely kill iptables-restore
+performance for big rulesets due to the extra extension lookup for chain
+lines. A following patch announcing those chains to libxtables will
+alleviate that.
+
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+Reviewed-by: Florian Westphal <fw@strlen.de>
+(cherry picked from commit b1aee6b2238794446feba41778f88703784560f7)
+
+Conflicts:
+	iptables/xshared.c
+-> Parts manually applied due to unmerged do_parse() function.
+---
+ iptables/ip6tables.c       | 2 +-
+ iptables/iptables.c        | 2 +-
+ iptables/xshared.c         | 2 +-
+ iptables/xshared.h         | 2 +-
+ iptables/xtables-restore.c | 5 +----
+ iptables/xtables.c         | 2 +-
+ 6 files changed, 6 insertions(+), 9 deletions(-)
+
+diff --git a/iptables/ip6tables.c b/iptables/ip6tables.c
+index 614d1e249c06d..b96dc033e7ebb 100644
+--- a/iptables/ip6tables.c
++++ b/iptables/ip6tables.c
+@@ -1247,7 +1247,7 @@ int do_command6(int argc, char *argv[], char **table,
+ 			break;
+ 
+ 		case 'N':
+-			parse_chain(optarg);
++			assert_valid_chain_name(optarg);
+ 			add_command(&command, CMD_NEW_CHAIN, CMD_NONE,
+ 				    cs.invert);
+ 			chain = optarg;
+diff --git a/iptables/iptables.c b/iptables/iptables.c
+index 3b395981cc8ea..6e2946f5660de 100644
+--- a/iptables/iptables.c
++++ b/iptables/iptables.c
+@@ -1243,7 +1243,7 @@ int do_command4(int argc, char *argv[], char **table,
+ 			break;
+ 
+ 		case 'N':
+-			parse_chain(optarg);
++			assert_valid_chain_name(optarg);
+ 			add_command(&command, CMD_NEW_CHAIN, CMD_NONE,
+ 				    cs.invert);
+ 			chain = optarg;
+diff --git a/iptables/xshared.c b/iptables/xshared.c
+index de8326b6c7b05..0c232ca2ae8d5 100644
+--- a/iptables/xshared.c
++++ b/iptables/xshared.c
+@@ -776,7 +776,7 @@ int parse_rulenumber(const char *rule)
+ 	return rulenum;
+ }
+ 
+-void parse_chain(const char *chainname)
++void assert_valid_chain_name(const char *chainname)
+ {
+ 	const char *ptr;
+ 
+diff --git a/iptables/xshared.h b/iptables/xshared.h
+index f5d2f8d0a2bc5..095a574d85879 100644
+--- a/iptables/xshared.h
++++ b/iptables/xshared.h
+@@ -217,6 +217,6 @@ char cmd2char(int option);
+ void add_command(unsigned int *cmd, const int newcmd,
+ 		 const int othercmds, int invert);
+ int parse_rulenumber(const char *rule);
+-void parse_chain(const char *chainname);
++void assert_valid_chain_name(const char *chainname);
+ 
+ #endif /* IPTABLES_XSHARED_H */
+diff --git a/iptables/xtables-restore.c b/iptables/xtables-restore.c
+index c472ac9bf651b..a078da32045dc 100644
+--- a/iptables/xtables-restore.c
++++ b/iptables/xtables-restore.c
+@@ -150,10 +150,7 @@ static void xtables_restore_parse_line(struct nft_handle *h,
+ 				   "%s: line %u chain name invalid\n",
+ 				   xt_params->program_name, line);
+ 
+-		if (strlen(chain) >= XT_EXTENSION_MAXNAMELEN)
+-			xtables_error(PARAMETER_PROBLEM,
+-				   "Invalid chain name `%s' (%u chars max)",
+-				   chain, XT_EXTENSION_MAXNAMELEN - 1);
++		assert_valid_chain_name(chain);
+ 
+ 		policy = strtok(NULL, " \t\n");
+ 		DEBUGP("line %u, policy '%s'\n", line, policy);
+diff --git a/iptables/xtables.c b/iptables/xtables.c
+index 3ea293ee7c411..9006962472c58 100644
+--- a/iptables/xtables.c
++++ b/iptables/xtables.c
+@@ -668,7 +668,7 @@ void do_parse(struct nft_handle *h, int argc, char *argv[],
+ 			break;
+ 
+ 		case 'N':
+-			parse_chain(optarg);
++			assert_valid_chain_name(optarg);
+ 			add_command(&p->command, CMD_NEW_CHAIN, CMD_NONE,
+ 				    cs->invert);
+ 			p->chain = optarg;
+-- 
+2.34.1
+

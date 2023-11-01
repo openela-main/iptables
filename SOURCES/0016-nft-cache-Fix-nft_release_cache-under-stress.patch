@@ -1,0 +1,49 @@
+From 66b9f92ef41de90fc2b0359247c36bc6d128233d Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Fri, 28 Feb 2020 20:32:13 +0100
+Subject: [PATCH] nft: cache: Fix nft_release_cache() under stress
+
+iptables-nft-restore calls nft_action(h, NFT_COMPAT_COMMIT) for each
+COMMIT line in input. When restoring a dump containing multiple large
+tables, chances are nft_rebuild_cache() has to run multiple times.
+
+If the above happens, consecutive table contents are added to __cache[1]
+which nft_rebuild_cache() then frees, so next commit attempt accesses
+invalid memory.
+
+Fix this by making nft_release_cache() (called after each successful
+commit) return things into pre-rebuild state again, but keeping the
+fresh cache copy.
+
+Fixes: f6ad231d698c7 ("nft: keep original cache in case of ERESTART")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit c550c81fd373e5753103d20f7902171f0fa79807)
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ iptables/nft-cache.c | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/iptables/nft-cache.c b/iptables/nft-cache.c
+index 7345a27e2894b..6f21f2283e0fb 100644
+--- a/iptables/nft-cache.c
++++ b/iptables/nft-cache.c
+@@ -647,8 +647,14 @@ void nft_rebuild_cache(struct nft_handle *h)
+ 
+ void nft_release_cache(struct nft_handle *h)
+ {
+-	if (h->cache_index)
+-		flush_cache(h, &h->__cache[0], NULL);
++	if (!h->cache_index)
++		return;
++
++	flush_cache(h, &h->__cache[0], NULL);
++	memcpy(&h->__cache[0], &h->__cache[1], sizeof(h->__cache[0]));
++	memset(&h->__cache[1], 0, sizeof(h->__cache[1]));
++	h->cache_index = 0;
++	h->cache = &h->__cache[0];
+ }
+ 
+ struct nftnl_table_list *nftnl_table_list_get(struct nft_handle *h)
+-- 
+2.25.1
+

@@ -1,0 +1,60 @@
+From 74a62264d4615ae7f76454e7ca406c46a62c7999 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Mon, 28 Sep 2020 18:57:18 +0200
+Subject: [PATCH] nft: Fix for broken address mask match detection
+
+Trying to decide whether a bitwise expression is needed to match parts
+of a source or destination address only, add_addr() checks if all bytes
+in 'mask' are 0xff or not. The check is apparently broken though as each
+byte in 'mask' is cast to a signed char before comparing against 0xff,
+therefore the bitwise is always added:
+
+| # ./bad/iptables-nft -A foo -s 10.0.0.1 -j ACCEPT
+| # ./good/iptables-nft -A foo -s 10.0.0.2 -j ACCEPT
+| # nft --debug=netlink list chain ip filter foo
+| ip filter foo 5
+|   [ payload load 4b @ network header + 12 => reg 1 ]
+|   [ bitwise reg 1 = (reg=1 & 0xffffffff ) ^ 0x00000000 ]
+|   [ cmp eq reg 1 0x0100000a ]
+|   [ counter pkts 0 bytes 0 ]
+|   [ immediate reg 0 accept ]
+|
+| ip filter foo 6 5
+|   [ payload load 4b @ network header + 12 => reg 1 ]
+|   [ cmp eq reg 1 0x0200000a ]
+|   [ counter pkts 0 bytes 0 ]
+|   [ immediate reg 0 accept ]
+|
+| table ip filter {
+| 	chain foo {
+| 		ip saddr 10.0.0.1 counter packets 0 bytes 0 accept
+| 		ip saddr 10.0.0.2 counter packets 0 bytes 0 accept
+| 	}
+| }
+
+Fix the cast, safe an extra op and gain 100% performance in ideal cases.
+
+Fixes: 56859380eb328 ("xtables-compat: avoid unneeded bitwise ops")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 72ed608bf1ea550ac13b5b880afc7ad3ffa0afd0)
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ iptables/nft-shared.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/iptables/nft-shared.c b/iptables/nft-shared.c
+index 78e422781723f..f60f5df97fb86 100644
+--- a/iptables/nft-shared.c
++++ b/iptables/nft-shared.c
+@@ -165,7 +165,7 @@ void add_outiface(struct nftnl_rule *r, char *iface, uint32_t op)
+ void add_addr(struct nftnl_rule *r, int offset,
+ 	      void *data, void *mask, size_t len, uint32_t op)
+ {
+-	const char *m = mask;
++	const unsigned char *m = mask;
+ 	int i;
+ 
+ 	add_payload(r, offset, len, NFT_PAYLOAD_NETWORK_HEADER);
+-- 
+2.28.0
+

@@ -1,0 +1,150 @@
+From 87a2128fcfd4c5b0847a8c611652ade8c54d8185 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Fri, 2 Oct 2020 09:44:38 +0200
+Subject: [PATCH] nft: Optimize class-based IP prefix matches
+
+Payload expression works on byte-boundaries, leverage this with suitable
+prefix lengths.
+
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 323259001d617ae359430a03ee3d3e7f107684e0)
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ iptables/nft-arp.c    | 11 ++++++++---
+ iptables/nft-ipv4.c   |  6 ++++--
+ iptables/nft-ipv6.c   |  6 ++++--
+ iptables/nft-shared.c | 14 ++++++++++----
+ iptables/nft-shared.h |  4 ++++
+ 5 files changed, 30 insertions(+), 11 deletions(-)
+
+diff --git a/iptables/nft-arp.c b/iptables/nft-arp.c
+index d4a86610ec217..ac400e484a4fa 100644
+--- a/iptables/nft-arp.c
++++ b/iptables/nft-arp.c
+@@ -303,7 +303,8 @@ static bool nft_arp_parse_devaddr(struct nft_xt_ctx *ctx,
+ 		memcpy(info->mask, ctx->bitwise.mask, ETH_ALEN);
+ 		ctx->flags &= ~NFT_XT_CTX_BITWISE;
+ 	} else {
+-		memset(info->mask, 0xff, ETH_ALEN);
++		memset(info->mask, 0xff,
++		       min(ctx->payload.len, ETH_ALEN));
+ 	}
+ 
+ 	return inv;
+@@ -360,7 +361,9 @@ static void nft_arp_parse_payload(struct nft_xt_ctx *ctx,
+ 				parse_mask_ipv4(ctx, &fw->arp.smsk);
+ 				ctx->flags &= ~NFT_XT_CTX_BITWISE;
+ 			} else {
+-				fw->arp.smsk.s_addr = 0xffffffff;
++				memset(&fw->arp.smsk, 0xff,
++				       min(ctx->payload.len,
++					   sizeof(struct in_addr)));
+ 			}
+ 
+ 			if (inv)
+@@ -380,7 +383,9 @@ static void nft_arp_parse_payload(struct nft_xt_ctx *ctx,
+ 				parse_mask_ipv4(ctx, &fw->arp.tmsk);
+ 				ctx->flags &= ~NFT_XT_CTX_BITWISE;
+ 			} else {
+-				fw->arp.tmsk.s_addr = 0xffffffff;
++				memset(&fw->arp.tmsk, 0xff,
++				       min(ctx->payload.len,
++					   sizeof(struct in_addr)));
+ 			}
+ 
+ 			if (inv)
+diff --git a/iptables/nft-ipv4.c b/iptables/nft-ipv4.c
+index 70634f8fad84d..c84af2df90da7 100644
+--- a/iptables/nft-ipv4.c
++++ b/iptables/nft-ipv4.c
+@@ -199,7 +199,8 @@ static void nft_ipv4_parse_payload(struct nft_xt_ctx *ctx,
+ 			parse_mask_ipv4(ctx, &cs->fw.ip.smsk);
+ 			ctx->flags &= ~NFT_XT_CTX_BITWISE;
+ 		} else {
+-			cs->fw.ip.smsk.s_addr = 0xffffffff;
++			memset(&cs->fw.ip.smsk, 0xff,
++			       min(ctx->payload.len, sizeof(struct in_addr)));
+ 		}
+ 
+ 		if (inv)
+@@ -212,7 +213,8 @@ static void nft_ipv4_parse_payload(struct nft_xt_ctx *ctx,
+ 			parse_mask_ipv4(ctx, &cs->fw.ip.dmsk);
+ 			ctx->flags &= ~NFT_XT_CTX_BITWISE;
+ 		} else {
+-			cs->fw.ip.dmsk.s_addr = 0xffffffff;
++			memset(&cs->fw.ip.dmsk, 0xff,
++			       min(ctx->payload.len, sizeof(struct in_addr)));
+ 		}
+ 
+ 		if (inv)
+diff --git a/iptables/nft-ipv6.c b/iptables/nft-ipv6.c
+index d01491bfdb689..cfced245a781c 100644
+--- a/iptables/nft-ipv6.c
++++ b/iptables/nft-ipv6.c
+@@ -146,7 +146,8 @@ static void nft_ipv6_parse_payload(struct nft_xt_ctx *ctx,
+ 			parse_mask_ipv6(ctx, &cs->fw6.ipv6.smsk);
+ 			ctx->flags &= ~NFT_XT_CTX_BITWISE;
+ 		} else {
+-			memset(&cs->fw6.ipv6.smsk, 0xff, sizeof(struct in6_addr));
++			memset(&cs->fw6.ipv6.smsk, 0xff,
++			       min(ctx->payload.len, sizeof(struct in6_addr)));
+ 		}
+ 
+ 		if (inv)
+@@ -159,7 +160,8 @@ static void nft_ipv6_parse_payload(struct nft_xt_ctx *ctx,
+ 			parse_mask_ipv6(ctx, &cs->fw6.ipv6.dmsk);
+ 			ctx->flags &= ~NFT_XT_CTX_BITWISE;
+ 		} else {
+-			memset(&cs->fw6.ipv6.dmsk, 0xff, sizeof(struct in6_addr));
++			memset(&cs->fw6.ipv6.dmsk, 0xff,
++			       min(ctx->payload.len, sizeof(struct in6_addr)));
+ 		}
+ 
+ 		if (inv)
+diff --git a/iptables/nft-shared.c b/iptables/nft-shared.c
+index f60f5df97fb86..b1237049d0a34 100644
+--- a/iptables/nft-shared.c
++++ b/iptables/nft-shared.c
+@@ -166,16 +166,22 @@ void add_addr(struct nftnl_rule *r, int offset,
+ 	      void *data, void *mask, size_t len, uint32_t op)
+ {
+ 	const unsigned char *m = mask;
++	bool bitwise = false;
+ 	int i;
+ 
+-	add_payload(r, offset, len, NFT_PAYLOAD_NETWORK_HEADER);
+-
+ 	for (i = 0; i < len; i++) {
+-		if (m[i] != 0xff)
++		if (m[i] != 0xff) {
++			bitwise = m[i] != 0;
+ 			break;
++		}
+ 	}
+ 
+-	if (i != len)
++	if (!bitwise)
++		len = i;
++
++	add_payload(r, offset, len, NFT_PAYLOAD_NETWORK_HEADER);
++
++	if (bitwise)
+ 		add_bitwise(r, mask, len);
+ 
+ 	add_cmp_ptr(r, op, data, len);
+diff --git a/iptables/nft-shared.h b/iptables/nft-shared.h
+index bee99a7dd0c93..c7f1e366b75ee 100644
+--- a/iptables/nft-shared.h
++++ b/iptables/nft-shared.h
+@@ -252,4 +252,8 @@ void xtables_restore_parse(struct nft_handle *h,
+ 			   const struct nft_xt_restore_parse *p);
+ 
+ void nft_check_xt_legacy(int family, bool is_ipt_save);
++
++#define min(x, y) ((x) < (y) ? (x) : (y))
++#define max(x, y) ((x) > (y) ? (x) : (y))
++
+ #endif
+-- 
+2.28.0
+

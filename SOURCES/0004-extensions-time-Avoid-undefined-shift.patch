@@ -1,0 +1,31 @@
+From bda4f46d1a474e5cc13712a0302adcf723e3cc5c Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Thu, 5 Dec 2019 13:15:01 +0100
+Subject: [PATCH] extensions: time: Avoid undefined shift
+
+Value 1 is signed by default and left-shifting by 31 is undefined for
+those. Fix this by marking the value as unsigned.
+
+Fixes: ad326ef9f734a ("Add the libxt_time iptables match")
+(cherry picked from commit 98b221002960040bf3505811c06025b6b9b6984b)
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ extensions/libxt_time.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/extensions/libxt_time.c b/extensions/libxt_time.c
+index 5a8cc5de13031..d001f5b7f448f 100644
+--- a/extensions/libxt_time.c
++++ b/extensions/libxt_time.c
+@@ -330,7 +330,7 @@ static void time_print_monthdays(uint32_t mask, bool human_readable)
+ 
+ 	printf(" ");
+ 	for (i = 1; i <= 31; ++i)
+-		if (mask & (1 << i)) {
++		if (mask & (1u << i)) {
+ 			if (nbdays++ > 0)
+ 				printf(",");
+ 			printf("%u", i);
+-- 
+2.24.0
+

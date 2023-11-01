@@ -1,0 +1,71 @@
+#!/bin/bash
+
+RETVAL=0
+EBTCONF=/etc/sysconfig/ebtables
+
+initialize() {
+  # Initialize $TYPE tables
+  echo -n $"  $TYPE tables: "
+  if [ -r /etc/sysconfig/ebtables.$TYPE ]; then
+    /sbin/ebtables -t $TYPE --atomic-file /etc/sysconfig/ebtables.$TYPE --atomic-commit > /dev/null || RETVAL=1
+  else
+    echo -n "not configured"
+  fi
+  if [ $RETVAL -eq 0 ]; then
+    echo -n $"[  OK  ]"
+    echo -ne "\r"
+  else
+    echo -n $"[FAILED]"
+    echo -ne "\r"
+  fi
+}
+
+case $1 in
+  start)
+    if [[ -r $EBTCONF ]]; then
+      ebtables-restore <$EBTCONF
+      RETVAL=$?
+    else
+      echo -n "not configured"
+    fi
+    if [ $RETVAL -eq 0 ]; then
+      echo -n $"[  OK  ]"
+      echo -ne "\r"
+    else
+      echo -n $"[FAILED]"
+      echo -ne "\r"
+    fi
+  ;;
+  stop)
+    [[ $EBTABLES_SAVE_ON_STOP == "yes" ]] && $0 save
+    /sbin/ebtables --init-table
+    RETVAL=$?
+
+    if [ $RETVAL -eq 0 ]; then
+      echo -n $"[  OK  ]"
+      echo -ne "\r"
+    else
+      echo -n $"[FAILED]"
+      echo -ne "\r"
+    fi
+  ;;
+  save)
+    echo -n $"Saving Ethernet bridge filtering (ebtables): "
+    ebtables-save >$EBTCONF
+    RETVAL=$?
+
+    if [ $RETVAL -eq 0 ]; then
+      echo -n $"[  OK  ]"
+      echo -ne "\r"
+    else
+      echo -n $"[FAILED]"
+      echo -ne "\r"
+    fi
+  ;;
+  *)
+    echo "usage: ${0##*/} {start|stop|save}" >&2
+    exit 1
+  ;;
+esac
+
+# vim:set ts=2 sw=2 ft=sh et:

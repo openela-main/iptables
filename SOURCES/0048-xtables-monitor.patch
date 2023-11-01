@@ -1,0 +1,31 @@
+From d64511250cf43ae11e18964cc0dccf9c2d6c3973 Mon Sep 17 00:00:00 2001
+From: Florian Westphal <fw@strlen.de>
+Date: Mon, 14 Dec 2020 17:11:23 +0100
+Subject: [PATCH] xtables-monitor:
+
+'LL=0x304' is not very convenient, print LOOPBACK instead.
+
+Signed-off-by: Florian Westphal <fw@strlen.de>
+(cherry picked from commit 98ed6f6fc6d97663a33de67afff60196052880b1)
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ iptables/xtables-monitor.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/iptables/xtables-monitor.c b/iptables/xtables-monitor.c
+index 23e828988bb8b..88033a59526d2 100644
+--- a/iptables/xtables-monitor.c
++++ b/iptables/xtables-monitor.c
+@@ -306,6 +306,9 @@ static void trace_print_packet(const struct nftnl_trace *nlt, struct cb_arg *arg
+ 			printf("MACDST=%s ", ether_ntoa((const void *)eh->h_dest));
+ 			printf("MACPROTO=%04x ", ntohs(eh->h_proto));
+ 			break;
++		case ARPHRD_LOOPBACK:
++			printf("LOOPBACK ");
++			break;
+ 		default:
+ 			printf("LL=0x%x ", type);
+ 			for (i = 0 ; i < len; i++)
+-- 
+2.31.1
+

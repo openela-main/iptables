@@ -1,0 +1,37 @@
+From 3b98024d952d265d50078c5b7ad04c9c65373733 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Fri, 29 May 2020 19:33:22 +0200
+Subject: [PATCH] nft: cache: Reset genid when rebuilding cache
+
+This is required in order to avoid a cache rebuild loop if
+iptables-nft-restore is called with '--test' parameter and a dump
+containing more than a single table.
+
+If non-zero, __nft_build_cache() never updates genid and therefore the
+incorrect genid (caused by increment in nft_action()) is never
+corrected.
+
+This is a RHEL-only fix, upstream rewrote the whole cache logic which
+implicitly resolved this problem.
+
+Fixes: 200bc39965149 ("nft: cache: Fix iptables-save segfault under stress")
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ iptables/nft-cache.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/iptables/nft-cache.c b/iptables/nft-cache.c
+index 07265b7795e4f..bc6e7f7eaebfb 100644
+--- a/iptables/nft-cache.c
++++ b/iptables/nft-cache.c
+@@ -629,6 +629,7 @@ void nft_rebuild_cache(struct nft_handle *h)
+ 	if (h->cache_level)
+ 		__nft_flush_cache(h);
+ 
++	h->nft_genid = 0;
+ 	h->cache_level = NFT_CL_NONE;
+ 	__nft_build_cache(h, level, NULL, NULL, NULL);
+ }
+-- 
+2.26.2
+

@@ -1,0 +1,38 @@
+From 538acaef0d8424bd61047e6f1b81e3bc8bd421ec Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Fri, 7 Aug 2020 16:42:07 +0200
+Subject: [PATCH] xtables-monitor: Fix ip6tables rule printing
+
+When printing an ip6tables rule event, false family ops are used as they
+are initially looked up for AF_INET and reused no matter the current
+rule's family. In practice, this means that nft_rule_print_save() calls
+the wrong rule_to_cs, save_rule and clear_cs callbacks. Therefore, if a
+rule specifies a source or destination address, the address is not
+printed.
+
+Fix this by performing a family lookup each time rule_cb is called.
+
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+Acked-by: Pablo Neira Ayuso <pablo@netfilter.org>
+(cherry picked from commit ca69b0290dc509d72118f0a054a5c740cb913875)
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ iptables/xtables-monitor.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/iptables/xtables-monitor.c b/iptables/xtables-monitor.c
+index c2b31dbaa0795..92962a2a95f48 100644
+--- a/iptables/xtables-monitor.c
++++ b/iptables/xtables-monitor.c
+@@ -93,6 +93,8 @@ static int rule_cb(const struct nlmsghdr *nlh, void *data)
+ 	if (arg->nfproto && arg->nfproto != family)
+ 		goto err_free;
+ 
++	arg->h->ops = nft_family_ops_lookup(family);
++
+ 	if (arg->is_event)
+ 		printf(" EVENT: ");
+ 	switch (family) {
+-- 
+2.31.1
+

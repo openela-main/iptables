@@ -1,0 +1,163 @@
+From 767c668628296fb3236aeeea1699ce06e66e5270 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Fri, 5 Apr 2019 13:21:19 +0200
+Subject: [PATCH] xshared: Merge and share parse_chain()
+
+Have a common routine to perform chain name checks, combining all
+variants' requirements.
+
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 1189d830ea4fd269da87761d400ebabca02e1ef3)
+
+Conflicts:
+	iptables/ip6tables.c
+	iptables/xshared.c
+-> Context changes due to missing commit 9dc50b5b8e441
+   ("xshared: Merge invflags handling code")
+---
+ iptables/ip6tables.c | 26 --------------------------
+ iptables/iptables.c  | 25 -------------------------
+ iptables/xshared.c   | 24 ++++++++++++++++++++++++
+ iptables/xshared.h   |  1 +
+ iptables/xtables.c   |  9 +--------
+ 5 files changed, 26 insertions(+), 59 deletions(-)
+
+diff --git a/iptables/ip6tables.c b/iptables/ip6tables.c
+index 576c2cf8b0d9f..614d1e249c06d 100644
+--- a/iptables/ip6tables.c
++++ b/iptables/ip6tables.c
+@@ -327,32 +327,6 @@ static int is_exthdr(uint16_t proto)
+ 		proto == IPPROTO_DSTOPTS);
+ }
+ 
+-static void
+-parse_chain(const char *chainname)
+-{
+-	const char *ptr;
+-
+-	if (strlen(chainname) >= XT_EXTENSION_MAXNAMELEN)
+-		xtables_error(PARAMETER_PROBLEM,
+-			   "chain name `%s' too long (must be under %u chars)",
+-			   chainname, XT_EXTENSION_MAXNAMELEN);
+-
+-	if (*chainname == '-' || *chainname == '!')
+-		xtables_error(PARAMETER_PROBLEM,
+-			   "chain name not allowed to start "
+-			   "with `%c'\n", *chainname);
+-
+-	if (xtables_find_target(chainname, XTF_TRY_LOAD))
+-		xtables_error(PARAMETER_PROBLEM,
+-			   "chain name may not clash "
+-			   "with target name\n");
+-
+-	for (ptr = chainname; *ptr; ptr++)
+-		if (isspace(*ptr))
+-			xtables_error(PARAMETER_PROBLEM,
+-				   "Invalid chain name `%s'", chainname);
+-}
+-
+ static void
+ set_option(unsigned int *options, unsigned int option, uint8_t *invflg,
+ 	   int invert)
+diff --git a/iptables/iptables.c b/iptables/iptables.c
+index 88ef6cf666d4b..3b395981cc8ea 100644
+--- a/iptables/iptables.c
++++ b/iptables/iptables.c
+@@ -319,31 +319,6 @@ opt2char(int option)
+ 
+ /* Christophe Burki wants `-p 6' to imply `-m tcp'.  */
+ 
+-static void
+-parse_chain(const char *chainname)
+-{
+-	const char *ptr;
+-
+-	if (strlen(chainname) >= XT_EXTENSION_MAXNAMELEN)
+-		xtables_error(PARAMETER_PROBLEM,
+-			   "chain name `%s' too long (must be under %u chars)",
+-			   chainname, XT_EXTENSION_MAXNAMELEN);
+-
+-	if (*chainname == '-' || *chainname == '!')
+-		xtables_error(PARAMETER_PROBLEM,
+-			   "chain name not allowed to start "
+-			   "with `%c'\n", *chainname);
+-
+-	if (xtables_find_target(chainname, XTF_TRY_LOAD))
+-		xtables_error(PARAMETER_PROBLEM,
+-			   "chain name may not clash "
+-			   "with target name\n");
+-
+-	for (ptr = chainname; *ptr; ptr++)
+-		if (isspace(*ptr))
+-			xtables_error(PARAMETER_PROBLEM,
+-				   "Invalid chain name `%s'", chainname);
+-}
+ 
+ static void
+ set_option(unsigned int *options, unsigned int option, uint8_t *invflg,
+diff --git a/iptables/xshared.c b/iptables/xshared.c
+index dcc995a9cabe6..de8326b6c7b05 100644
+--- a/iptables/xshared.c
++++ b/iptables/xshared.c
+@@ -775,3 +775,27 @@ int parse_rulenumber(const char *rule)
+ 
+ 	return rulenum;
+ }
++
++void parse_chain(const char *chainname)
++{
++	const char *ptr;
++
++	if (strlen(chainname) >= XT_EXTENSION_MAXNAMELEN)
++		xtables_error(PARAMETER_PROBLEM,
++			      "chain name `%s' too long (must be under %u chars)",
++			      chainname, XT_EXTENSION_MAXNAMELEN);
++
++	if (*chainname == '-' || *chainname == '!')
++		xtables_error(PARAMETER_PROBLEM,
++			      "chain name not allowed to start with `%c'\n",
++			      *chainname);
++
++	if (xtables_find_target(chainname, XTF_TRY_LOAD))
++		xtables_error(PARAMETER_PROBLEM,
++			      "chain name may not clash with target name\n");
++
++	for (ptr = chainname; *ptr; ptr++)
++		if (isspace(*ptr))
++			xtables_error(PARAMETER_PROBLEM,
++				      "Invalid chain name `%s'", chainname);
++}
+diff --git a/iptables/xshared.h b/iptables/xshared.h
+index e4015c00e2a35..f5d2f8d0a2bc5 100644
+--- a/iptables/xshared.h
++++ b/iptables/xshared.h
+@@ -217,5 +217,6 @@ char cmd2char(int option);
+ void add_command(unsigned int *cmd, const int newcmd,
+ 		 const int othercmds, int invert);
+ int parse_rulenumber(const char *rule);
++void parse_chain(const char *chainname);
+ 
+ #endif /* IPTABLES_XSHARED_H */
+diff --git a/iptables/xtables.c b/iptables/xtables.c
+index 8c2d21d42b7d2..3ea293ee7c411 100644
+--- a/iptables/xtables.c
++++ b/iptables/xtables.c
+@@ -668,14 +668,7 @@ void do_parse(struct nft_handle *h, int argc, char *argv[],
+ 			break;
+ 
+ 		case 'N':
+-			if (optarg && (*optarg == '-' || *optarg == '!'))
+-				xtables_error(PARAMETER_PROBLEM,
+-					   "chain name not allowed to start "
+-					   "with `%c'\n", *optarg);
+-			if (xtables_find_target(optarg, XTF_TRY_LOAD))
+-				xtables_error(PARAMETER_PROBLEM,
+-					   "chain name may not clash "
+-					   "with target name\n");
++			parse_chain(optarg);
+ 			add_command(&p->command, CMD_NEW_CHAIN, CMD_NONE,
+ 				    cs->invert);
+ 			p->chain = optarg;
+-- 
+2.34.1
+

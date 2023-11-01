@@ -1,0 +1,80 @@
+From acc1fb93b3674f81c9d1daa0e4e855410d2568b0 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Sat, 9 May 2020 13:42:56 +0200
+Subject: [PATCH] nfnl_osf: Improve error handling
+
+For some error cases, no log message was created - hence apart from the
+return code there was no indication of failing execution.
+
+If a line load fails, don't abort but continue with the remaining
+file contents. The current pf.os file in this repository serves as
+proof-of-concept:
+
+Lines 700 and 701: Duplicates of lines 698 and 699 because 'W*' and 'W0'
+parse into the same data.
+
+Line 704: Duplicate of line 702 because apart from 'W*' and 'W0', only
+the first three fields on right-hand side are sent to the kernel.
+
+When loading, these dups are ignored (they would bounce if NLM_F_EXCL
+was given). Upon deletion, they cause ENOENT response from kernel. In
+order to align duplicate-tolerance in both modes, just ignore that
+ENOENT.
+
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 3e09bd1888575cfec136574d2b0e810ba33f1cfb)
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ utils/nfnl_osf.c | 15 ++++++++++-----
+ 1 file changed, 10 insertions(+), 5 deletions(-)
+
+diff --git a/utils/nfnl_osf.c b/utils/nfnl_osf.c
+index 922d90ac135b7..8008e83d8af4b 100644
+--- a/utils/nfnl_osf.c
++++ b/utils/nfnl_osf.c
+@@ -392,7 +392,7 @@ static int osf_load_line(char *buffer, int len, int del)
+ static int osf_load_entries(char *path, int del)
+ {
+ 	FILE *inf;
+-	int err = 0;
++	int err = 0, lineno = 0;
+ 	char buf[1024];
+ 
+ 	inf = fopen(path, "r");
+@@ -402,7 +402,9 @@ static int osf_load_entries(char *path, int del)
+ 	}
+ 
+ 	while(fgets(buf, sizeof(buf), inf)) {
+-		int len;
++		int len, rc;
++
++		lineno++;
+ 
+ 		if (buf[0] == '#' || buf[0] == '\n' || buf[0] == '\r')
+ 			continue;
+@@ -414,9 +416,11 @@ static int osf_load_entries(char *path, int del)
+ 
+ 		buf[len] = '\0';
+ 
+-		err = osf_load_line(buf, len, del);
+-		if (err)
+-			break;
++		rc = osf_load_line(buf, len, del);
++		if (rc && (!del || errno != ENOENT)) {
++			ulog_err("Failed to load line %d", lineno);
++			err = rc;
++		}
+ 
+ 		memset(buf, 0, sizeof(buf));
+ 	}
+@@ -448,6 +452,7 @@ int main(int argc, char *argv[])
+ 
+ 	if (!fingerprints) {
+ 		err = -ENOENT;
++		ulog("Missing fingerprints file argument.\n");
+ 		goto err_out_exit;
+ 	}
+ 
+-- 
+2.26.2
+

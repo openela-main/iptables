@@ -1,0 +1,42 @@
+From b29b3a215b9cbec20ea633e6a861accfc48b59bb Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Sat, 9 May 2020 13:36:49 +0200
+Subject: [PATCH] nfnl_osf: Fix broken conversion to nfnl_query()
+
+Due to missing NLM_F_ACK flag in request, nfnetlink code in kernel
+didn't create an own ACK message but left it upon subsystem to ACK or
+not. Since nfnetlink_osf doesn't ACK by itself, nfnl_query() got stuck
+waiting for a reply.
+
+Whoever did the conversion from deprecated nfnl_talk() obviously didn't
+even test basic functionality of the tool.
+
+Fixes: 52aa15098ebd6 ("nfnl_osf: Replace deprecated nfnl_talk() by nfnl_query()")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit c8332553caf48132403895bae750b3cd09a2efd8)
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ utils/nfnl_osf.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/utils/nfnl_osf.c b/utils/nfnl_osf.c
+index 15d531975e11d..922d90ac135b7 100644
+--- a/utils/nfnl_osf.c
++++ b/utils/nfnl_osf.c
+@@ -378,9 +378,11 @@ static int osf_load_line(char *buffer, int len, int del)
+ 	memset(buf, 0, sizeof(buf));
+ 
+ 	if (del)
+-		nfnl_fill_hdr(nfnlssh, nmh, 0, AF_UNSPEC, 0, OSF_MSG_REMOVE, NLM_F_REQUEST);
++		nfnl_fill_hdr(nfnlssh, nmh, 0, AF_UNSPEC, 0, OSF_MSG_REMOVE,
++			      NLM_F_ACK | NLM_F_REQUEST);
+ 	else
+-		nfnl_fill_hdr(nfnlssh, nmh, 0, AF_UNSPEC, 0, OSF_MSG_ADD, NLM_F_REQUEST | NLM_F_CREATE);
++		nfnl_fill_hdr(nfnlssh, nmh, 0, AF_UNSPEC, 0, OSF_MSG_ADD,
++			      NLM_F_ACK | NLM_F_REQUEST | NLM_F_CREATE);
+ 
+ 	nfnl_addattr_l(nmh, sizeof(buf), OSF_ATTR_FINGER, &f, sizeof(struct xt_osf_user_finger));
+ 
+-- 
+2.26.2
+

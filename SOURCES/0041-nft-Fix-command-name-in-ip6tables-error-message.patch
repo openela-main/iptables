@@ -1,0 +1,45 @@
+From 6d8a390bd13bac294ff9de225a49fe9e4de2d6e5 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Fri, 7 Aug 2020 13:48:28 +0200
+Subject: [PATCH] nft: Fix command name in ip6tables error message
+
+Upon errors, ip6tables-nft would prefix its error messages with
+'iptables:' instead of 'ip6tables:'. Turns out the command name was
+hard-coded, use 'progname' variable instead.
+While being at it, merge the two mostly identical fprintf() calls into
+one.
+
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+Acked-by: Pablo Neira Ayuso <pablo@netfilter.org>
+(cherry picked from commit 3be40dcfb5af1438b6abdbda45a1e3b59c104e13)
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ iptables/xtables-standalone.c | 12 ++++--------
+ 1 file changed, 4 insertions(+), 8 deletions(-)
+
+diff --git a/iptables/xtables-standalone.c b/iptables/xtables-standalone.c
+index 022d5dd44abbf..b5b7ccaf4e660 100644
+--- a/iptables/xtables-standalone.c
++++ b/iptables/xtables-standalone.c
+@@ -74,14 +74,10 @@ xtables_main(int family, const char *progname, int argc, char *argv[])
+ 	nft_fini(&h);
+ 
+ 	if (!ret) {
+-		if (errno == EINVAL) {
+-			fprintf(stderr, "iptables: %s. "
+-					"Run `dmesg' for more information.\n",
+-				nft_strerror(errno));
+-		} else {
+-			fprintf(stderr, "iptables: %s.\n",
+-				nft_strerror(errno));
+-		}
++		fprintf(stderr, "%s: %s.%s\n", progname, nft_strerror(errno),
++			(errno == EINVAL ?
++			 " Run `dmesg' for more information." : ""));
++
+ 		if (errno == EAGAIN)
+ 			exit(RESOURCE_PROBLEM);
+ 	}
+-- 
+2.28.0
+

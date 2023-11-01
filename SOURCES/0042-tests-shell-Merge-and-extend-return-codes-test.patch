@@ -1,0 +1,206 @@
+From c5f07a7d718f812f916686926567adbac6c1b125 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Thu, 6 Aug 2020 18:52:34 +0200
+Subject: [PATCH] tests: shell: Merge and extend return codes test
+
+Merge scripts for iptables and ip6tables, they were widely identical.
+Also extend the test by one check (removing a non-existent rule with
+valid chain and target) and quote the error messages where differences
+are deliberately ignored.
+
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+Acked-by: Pablo Neira Ayuso <pablo@netfilter.org>
+(cherry picked from commit cd3e83d1b04fd2683f0fb06e496ee5be08a96b4f)
+
+Conflicts:
+	iptables/tests/shell/testcases/ip6tables/0004-return-codes_0
+	iptables/tests/shell/testcases/iptables/0004-return-codes_0
+-> Missing upstream commit a7f1e208cdf9c ("nft: split parsing from
+   netlink commands") which added a few tests to both files.
+
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ .../testcases/ip6tables/0004-return-codes_0   |  38 -------
+ .../testcases/iptables/0004-return-codes_0    | 104 ++++++++++--------
+ 2 files changed, 58 insertions(+), 84 deletions(-)
+ delete mode 100755 iptables/tests/shell/testcases/ip6tables/0004-return-codes_0
+
+diff --git a/iptables/tests/shell/testcases/ip6tables/0004-return-codes_0 b/iptables/tests/shell/testcases/ip6tables/0004-return-codes_0
+deleted file mode 100755
+index f023b7915498e..0000000000000
+--- a/iptables/tests/shell/testcases/ip6tables/0004-return-codes_0
++++ /dev/null
+@@ -1,38 +0,0 @@
+-#!/bin/sh
+-
+-# make sure error return codes are as expected useful cases
+-# (e.g. commands to check ruleset state)
+-
+-global_rc=0
+-
+-cmd() { # (rc, cmd, [args ...])
+-	rc_exp=$1; shift
+-
+-	$XT_MULTI "$@"
+-	rc=$?
+-
+-	[ $rc -eq $rc_exp ] || {
+-		echo "---> expected $rc_exp, got $rc for command '$@'"
+-		global_rc=1
+-	}
+-}
+-
+-# test chain creation
+-cmd 0 ip6tables -N foo
+-cmd 1 ip6tables -N foo
+-# iptables-nft allows this - bug or feature?
+-#cmd 2 ip6tables -N "invalid name"
+-
+-# test rule adding
+-cmd 0 ip6tables -A INPUT -j ACCEPT
+-cmd 1 ip6tables -A noexist -j ACCEPT
+-
+-# test rule checking
+-cmd 0 ip6tables -C INPUT -j ACCEPT
+-cmd 1 ip6tables -C FORWARD -j ACCEPT
+-cmd 1 ip6tables -C nonexist -j ACCEPT
+-cmd 2 ip6tables -C INPUT -j foobar
+-cmd 2 ip6tables -C INPUT -m foobar -j ACCEPT
+-cmd 3 ip6tables -t foobar -C INPUT -j ACCEPT
+-
+-exit $global_rc
+diff --git a/iptables/tests/shell/testcases/iptables/0004-return-codes_0 b/iptables/tests/shell/testcases/iptables/0004-return-codes_0
+index ce02e0bcb128b..67f1698945753 100755
+--- a/iptables/tests/shell/testcases/iptables/0004-return-codes_0
++++ b/iptables/tests/shell/testcases/iptables/0004-return-codes_0
+@@ -13,69 +13,81 @@ cmd() { # (rc, msg, cmd, [args ...])
+ 		msg_exp="$1"; shift
+ 	}
+ 
+-	msg="$($XT_MULTI "$@" 2>&1 >/dev/null)"
+-	rc=$?
++	for ipt in iptables ip6tables; do
++		msg="$($XT_MULTI $ipt "$@" 2>&1 >/dev/null)"
++		rc=$?
+ 
+-	[ $rc -eq $rc_exp ] || {
+-		echo "---> expected return code $rc_exp, got $rc for command '$@'"
+-		global_rc=1
+-	}
++		[ $rc -eq $rc_exp ] || {
++			echo "---> expected return code $rc_exp, got $rc for command '$ipt $@'"
++			global_rc=1
++		}
+ 
+-	[ -n "$msg_exp" ] || return
+-	grep -q "$msg_exp" <<< $msg || {
+-		echo "---> expected error message '$msg_exp', got '$msg' for command '$@'"
+-		global_rc=1
+-	}
++		[ -n "$msg_exp" ] || continue
++		msg_exp_full="${ipt}$msg_exp"
++		grep -q "$msg_exp_full" <<< $msg || {
++			echo "---> expected error message '$msg_exp_full', got '$msg' for command '$ipt $@'"
++			global_rc=1
++		}
++	done
+ }
+ 
+-EEXIST_F="File exists."
+-EEXIST="Chain already exists."
+-ENOENT="No chain/target/match by that name."
+-E2BIG_I="Index of insertion too big."
+-E2BIG_D="Index of deletion too big."
+-E2BIG_R="Index of replacement too big."
+-EBADRULE="Bad rule (does a matching rule exist in that chain?)."
+-ENOTGT="Couldn't load target \`foobar':No such file or directory"
+-ENOMTH="Couldn't load match \`foobar':No such file or directory"
+-ENOTBL="can't initialize iptables table \`foobar': Table does not exist"
++EEXIST_F=": File exists."
++EEXIST=": Chain already exists."
++ENOENT=": No chain/target/match by that name."
++E2BIG_I=": Index of insertion too big."
++E2BIG_D=": Index of deletion too big."
++E2BIG_R=": Index of replacement too big."
++EBADRULE=": Bad rule (does a matching rule exist in that chain?)."
++#ENOTGT=" v[0-9\.]* [^ ]*: Couldn't load target \`foobar':No such file or directory"
++ENOMTH=" v[0-9\.]* [^ ]*: Couldn't load match \`foobar':No such file or directory"
++ENOTBL=": can't initialize iptables table \`foobar': Table does not exist"
+ 
+ # test chain creation
+-cmd 0 iptables -N foo
+-cmd 1 "$EEXIST" iptables -N foo
++cmd 0 -N foo
++cmd 1 "$EEXIST" -N foo
+ # iptables-nft allows this - bug or feature?
+-#cmd 2 iptables -N "invalid name"
++#cmd 2 -N "invalid name"
+ 
+ # test chain flushing/zeroing
+-cmd 0 iptables -F foo
+-cmd 0 iptables -Z foo
+-cmd 1 "$ENOENT" iptables -F bar
+-cmd 1 "$ENOENT" iptables -Z bar
++cmd 0 -F foo
++cmd 0 -Z foo
++cmd 1 "$ENOENT" -F bar
++cmd 1 "$ENOENT" -Z bar
+ 
+ # test chain rename
+-cmd 0 iptables -E foo bar
+-cmd 1 "$EEXIST_F" iptables -E foo bar
++cmd 0 -E foo bar
++cmd 1 "$EEXIST_F" -E foo bar
+ 
+ # test rule adding
+-cmd 0 iptables -A INPUT -j ACCEPT
+-cmd 1 "$ENOENT" iptables -A noexist -j ACCEPT
++cmd 0 -A INPUT -j ACCEPT
++cmd 1 "$ENOENT" -A noexist -j ACCEPT
++# next three differ:
++# legacy: Couldn't load target `foobar':No such file or directory
++# nft:    Chain 'foobar' does not exist
++cmd 2 "" -I INPUT -j foobar
++cmd 2 "" -R INPUT 1 -j foobar
++cmd 2 "" -D INPUT -j foobar
++cmd 1 "$EBADRULE" -D INPUT -p tcp --dport 22 -j ACCEPT
+ 
+ # test rulenum commands
+-cmd 1 "$E2BIG_I" iptables -I INPUT 23 -j ACCEPT
+-cmd 1 "$E2BIG_D" iptables -D INPUT 23
+-cmd 1 "$E2BIG_R" iptables -R INPUT 23 -j ACCEPT
+-cmd 1 "$ENOENT" iptables -I nonexist 23 -j ACCEPT
+-cmd 1 "$ENOENT" iptables -D nonexist 23
+-cmd 1 "$ENOENT" iptables -R nonexist 23 -j ACCEPT
++cmd 1 "$E2BIG_I" -I INPUT 23 -j ACCEPT
++cmd 1 "$E2BIG_D" -D INPUT 23
++cmd 1 "$E2BIG_R" -R INPUT 23 -j ACCEPT
++cmd 1 "$ENOENT" -I nonexist 23 -j ACCEPT
++cmd 1 "$ENOENT" -D nonexist 23
++cmd 1 "$ENOENT" -R nonexist 23 -j ACCEPT
+ 
+ # test rule checking
+-cmd 0 iptables -C INPUT -j ACCEPT
+-cmd 1 "$EBADRULE" iptables -C FORWARD -j ACCEPT
+-cmd 1 "$BADRULE" iptables -C nonexist -j ACCEPT
+-cmd 2 "$ENOMTH" iptables -C INPUT -m foobar -j ACCEPT
++cmd 0 -C INPUT -j ACCEPT
++cmd 1 "$EBADRULE" -C FORWARD -j ACCEPT
++cmd 1 "$BADRULE" -C nonexist -j ACCEPT
++cmd 2 "$ENOMTH" -C INPUT -m foobar -j ACCEPT
+ # messages of those don't match, but iptables-nft ones are actually nicer.
+-#cmd 2 "$ENOTGT" iptables -C INPUT -j foobar
+-#cmd 3 "$ENOTBL" iptables -t foobar -C INPUT -j ACCEPT
+-cmd 2 "" iptables -C INPUT -j foobar
+-cmd 3 "" iptables -t foobar -C INPUT -j ACCEPT
++# legacy: Couldn't load target `foobar':No such file or directory
++# nft:    Chain 'foobar' does not exist
++cmd 2 "" -C INPUT -j foobar
++# legacy: can't initialize ip6tables table `foobar': Table does not exist (do you need to insmod?)
++# nft:    table 'foobar' does not exist
++cmd 3 "" -t foobar -C INPUT -j ACCEPT
+ 
+ exit $global_rc
+-- 
+2.28.0
+

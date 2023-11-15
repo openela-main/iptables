@@ -1,0 +1,39 @@
+From 64788807be19d744bb9c57943e74fe6775a8c05f Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Wed, 16 Nov 2022 13:09:16 +0100
+Subject: [PATCH] extensions: libipt_ttl: Sanitize xlate callback
+
+Catch unexpected values in info->mode, also fix indenting.
+
+Fixes: 1b320a1a1dc1f ("extensions: libipt_ttl: Add translation to nft")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 800bed28b2b7bbd931166c7426640ae619f03342)
+---
+ extensions/libipt_ttl.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/extensions/libipt_ttl.c b/extensions/libipt_ttl.c
+index 6bdd219618091..86ba554ef92a8 100644
+--- a/extensions/libipt_ttl.c
++++ b/extensions/libipt_ttl.c
+@@ -106,7 +106,7 @@ static int ttl_xlate(struct xt_xlate *xl,
+ 	const struct ipt_ttl_info *info =
+ 		(struct ipt_ttl_info *) params->match->data;
+ 
+-		switch (info->mode) {
++	switch (info->mode) {
+ 		case IPT_TTL_EQ:
+ 			xt_xlate_add(xl, "ip ttl");
+ 			break;
+@@ -121,7 +121,7 @@ static int ttl_xlate(struct xt_xlate *xl,
+ 			break;
+ 		default:
+ 			/* Should not happen. */
+-			break;
++			return 0;
+ 	}
+ 
+ 	xt_xlate_add(xl, " %u", info->ttl);
+-- 
+2.40.0
+

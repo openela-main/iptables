@@ -1,0 +1,239 @@
+From 715c128634fc2ff0c7702db8f79783226a0c2fac Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Wed, 25 Jan 2023 02:01:56 +0100
+Subject: [PATCH] ebtables: Refuse unselected targets' options
+
+Unlike legacy, ebtables-nft would allow e.g.:
+
+| -t nat -A PREROUTING --to-dst fe:ed:00:00:ba:be
+
+While the result is correct, it may mislead users into believing
+multiple targets are possible per rule. Better follow legacy's behaviour
+and reject target options unless they have been "enabled" by a previous
+'-j' option.
+
+To achieve this, one needs to distinguish targets from watchers also
+attached to 'xtables_targets' and otherwise behaving like regular
+matches. Introduce XTABLES_EXT_WATCHER to mark the two.
+
+The above works already, but error messages are misleading when using
+the now unsupported syntax since target options have been merged
+already. Solve this by not pre-loading the targets at all, code will
+just fall back to loading ad '-j' parsing time as iptables does.
+
+Note how this also fixes for 'counter' statement being in wrong position
+of ebtables-translate output.
+
+Fixes: fe97f60e5d2a9 ("ebtables-compat: add watchers support")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 27d37863a486352511dac385bde8f3d20526be5b)
+
+Conflicts:
+	extensions/libebt_dnat.txlate
+	extensions/libebt_mark.txlate
+	extensions/libebt_snat.txlate
+-> Adjusted to missing commit 09d63e818ae0d
+   ("extensions: change expected output for new format").
+---
+ extensions/libebt_dnat.txlate                 | 12 ++++----
+ extensions/libebt_log.c                       |  1 +
+ extensions/libebt_mark.txlate                 | 16 +++++-----
+ extensions/libebt_nflog.c                     |  1 +
+ extensions/libebt_snat.txlate                 |  8 ++---
+ include/xtables.h                             |  1 +
+ .../ebtables/0002-ebtables-save-restore_0     |  4 +--
+ iptables/xtables-eb.c                         | 29 +++++++------------
+ 8 files changed, 33 insertions(+), 39 deletions(-)
+
+diff --git a/extensions/libebt_dnat.txlate b/extensions/libebt_dnat.txlate
+index 2652dd55b2644..d99396a513b8d 100644
+--- a/extensions/libebt_dnat.txlate
++++ b/extensions/libebt_dnat.txlate
+@@ -1,8 +1,8 @@
+-ebtables-translate -t nat -A PREROUTING -i someport --to-dst de:ad:00:be:ee:ff
+-nft add rule bridge nat PREROUTING iifname "someport" ether daddr set de:ad:0:be:ee:ff accept counter
++ebtables-translate -t nat -A PREROUTING -i someport -j dnat --to-dst de:ad:00:be:ee:ff
++nft add rule bridge nat PREROUTING iifname "someport" counter ether daddr set de:ad:0:be:ee:ff accept
+ 
+-ebtables-translate -t nat -A PREROUTING -i someport --to-dst de:ad:00:be:ee:ff --dnat-target ACCEPT
+-nft add rule bridge nat PREROUTING iifname "someport" ether daddr set de:ad:0:be:ee:ff accept counter
++ebtables-translate -t nat -A PREROUTING -i someport -j dnat --to-dst de:ad:00:be:ee:ff --dnat-target ACCEPT
++nft add rule bridge nat PREROUTING iifname "someport" counter ether daddr set de:ad:0:be:ee:ff accept
+ 
+-ebtables-translate -t nat -A PREROUTING -i someport --to-dst de:ad:00:be:ee:ff --dnat-target CONTINUE
+-nft add rule bridge nat PREROUTING iifname "someport" ether daddr set de:ad:0:be:ee:ff continue counter
++ebtables-translate -t nat -A PREROUTING -i someport -j dnat --to-dst de:ad:00:be:ee:ff --dnat-target CONTINUE
++nft add rule bridge nat PREROUTING iifname "someport" counter ether daddr set de:ad:0:be:ee:ff continue
+diff --git a/extensions/libebt_log.c b/extensions/libebt_log.c
+index 8858cf0e22c00..9f95bf77d9288 100644
+--- a/extensions/libebt_log.c
++++ b/extensions/libebt_log.c
+@@ -198,6 +198,7 @@ static int brlog_xlate(struct xt_xlate *xl,
+ static struct xtables_target brlog_target = {
+ 	.name		= "log",
+ 	.revision	= 0,
++	.ext_flags	= XTABLES_EXT_WATCHER,
+ 	.version	= XTABLES_VERSION,
+ 	.family		= NFPROTO_BRIDGE,
+ 	.size		= XT_ALIGN(sizeof(struct ebt_log_info)),
+diff --git a/extensions/libebt_mark.txlate b/extensions/libebt_mark.txlate
+index 7529302d9a444..9695139655055 100644
+--- a/extensions/libebt_mark.txlate
++++ b/extensions/libebt_mark.txlate
+@@ -1,11 +1,11 @@
+-ebtables-translate -A INPUT --mark-set 42
+-nft add rule bridge filter INPUT meta mark set 0x2a accept counter
++ebtables-translate -A INPUT -j mark --mark-set 42
++nft add rule bridge filter INPUT counter meta mark set 0x2a accept
+ 
+-ebtables-translate -A INPUT --mark-or 42 --mark-target RETURN
+-nft add rule bridge filter INPUT meta mark set meta mark or 0x2a return counter
++ebtables-translate -A INPUT -j mark --mark-or 42 --mark-target RETURN
++nft add rule bridge filter INPUT counter meta mark set meta mark or 0x2a return
+ 
+-ebtables-translate -A INPUT --mark-and 42 --mark-target ACCEPT
+-nft add rule bridge filter INPUT meta mark set meta mark and 0x2a accept counter
++ebtables-translate -A INPUT -j mark --mark-and 42 --mark-target ACCEPT
++nft add rule bridge filter INPUT counter meta mark set meta mark and 0x2a accept
+ 
+-ebtables-translate -A INPUT --mark-xor 42 --mark-target DROP
+-nft add rule bridge filter INPUT meta mark set meta mark xor 0x2a drop counter
++ebtables-translate -A INPUT -j mark --mark-xor 42 --mark-target DROP
++nft add rule bridge filter INPUT counter meta mark set meta mark xor 0x2a drop
+diff --git a/extensions/libebt_nflog.c b/extensions/libebt_nflog.c
+index 9801f358c81b1..23c9eed51d8e9 100644
+--- a/extensions/libebt_nflog.c
++++ b/extensions/libebt_nflog.c
+@@ -150,6 +150,7 @@ static int brnflog_xlate(struct xt_xlate *xl,
+ static struct xtables_target brnflog_watcher = {
+ 	.name		= "nflog",
+ 	.revision	= 0,
++	.ext_flags	= XTABLES_EXT_WATCHER,
+ 	.version	= XTABLES_VERSION,
+ 	.family		= NFPROTO_BRIDGE,
+ 	.size		= XT_ALIGN(sizeof(struct ebt_nflog_info)),
+diff --git a/extensions/libebt_snat.txlate b/extensions/libebt_snat.txlate
+index 0d84602466c23..6b2250647daf3 100644
+--- a/extensions/libebt_snat.txlate
++++ b/extensions/libebt_snat.txlate
+@@ -1,5 +1,5 @@
+-ebtables-translate -t nat -A POSTROUTING -s 0:0:0:0:0:0 -o someport+ --to-source de:ad:00:be:ee:ff
+-nft add rule bridge nat POSTROUTING oifname "someport*" ether saddr 00:00:00:00:00:00 ether saddr set de:ad:0:be:ee:ff accept counter
++ebtables-translate -t nat -A POSTROUTING -s 0:0:0:0:0:0 -o someport+ -j snat --to-source de:ad:00:be:ee:ff
++nft add rule bridge nat POSTROUTING oifname "someport*" ether saddr 00:00:00:00:00:00 counter ether saddr set de:ad:0:be:ee:ff accept
+ 
+-ebtables-translate -t nat -A POSTROUTING -o someport --to-src de:ad:00:be:ee:ff --snat-target CONTINUE
+-nft add rule bridge nat POSTROUTING oifname "someport" ether saddr set de:ad:0:be:ee:ff continue counter
++ebtables-translate -t nat -A POSTROUTING -o someport -j snat --to-src de:ad:00:be:ee:ff --snat-target CONTINUE
++nft add rule bridge nat POSTROUTING oifname "someport" counter ether saddr set de:ad:0:be:ee:ff continue
+diff --git a/include/xtables.h b/include/xtables.h
+index 3c0d0f78e8d1a..58ad4270bcaaa 100644
+--- a/include/xtables.h
++++ b/include/xtables.h
+@@ -203,6 +203,7 @@ struct xtables_lmap {
+ 
+ enum xtables_ext_flags {
+ 	XTABLES_EXT_ALIAS = 1 << 0,
++	XTABLES_EXT_WATCHER = 1 << 1,
+ };
+ 
+ struct xt_xlate;
+diff --git a/iptables/tests/shell/testcases/ebtables/0002-ebtables-save-restore_0 b/iptables/tests/shell/testcases/ebtables/0002-ebtables-save-restore_0
+index a4fc31548e323..05ac5bda66ff8 100755
+--- a/iptables/tests/shell/testcases/ebtables/0002-ebtables-save-restore_0
++++ b/iptables/tests/shell/testcases/ebtables/0002-ebtables-save-restore_0
+@@ -38,7 +38,7 @@ $XT_MULTI ebtables -A foo -p IPv6 --ip6-proto tcp -j ACCEPT
+ 
+ $XT_MULTI ebtables -A foo --limit 100 --limit-burst 42 -j ACCEPT
+ $XT_MULTI ebtables -A foo --log
+-$XT_MULTI ebtables -A foo --mark-set 0x23 --mark-target ACCEPT
++$XT_MULTI ebtables -A foo -j mark --mark-set 0x23 --mark-target ACCEPT
+ $XT_MULTI ebtables -A foo --nflog
+ $XT_MULTI ebtables -A foo --pkttype-type multicast -j ACCEPT
+ $XT_MULTI ebtables -A foo --stp-type config -j ACCEPT
+@@ -53,7 +53,7 @@ $XT_MULTI ebtables -A FORWARD -j foo
+ $XT_MULTI ebtables -N bar
+ $XT_MULTI ebtables -P bar RETURN
+ 
+-$XT_MULTI ebtables -t nat -A PREROUTING --redirect-target ACCEPT
++$XT_MULTI ebtables -t nat -A PREROUTING -j redirect --redirect-target ACCEPT
+ #$XT_MULTI ebtables -t nat -A PREROUTING --to-src fe:ed:ba:be:00:01
+ 
+ $XT_MULTI ebtables -t nat -A OUTPUT -j ACCEPT
+diff --git a/iptables/xtables-eb.c b/iptables/xtables-eb.c
+index b7f9b3d9c511f..a3d659fb35e27 100644
+--- a/iptables/xtables-eb.c
++++ b/iptables/xtables-eb.c
+@@ -536,14 +536,14 @@ static void ebt_load_match(const char *name)
+ 		xtables_error(OTHER_PROBLEM, "Can't alloc memory");
+ }
+ 
+-static void __ebt_load_watcher(const char *name, const char *typename)
++static void ebt_load_watcher(const char *name)
+ {
+ 	struct xtables_target *watcher;
+ 	size_t size;
+ 
+ 	watcher = xtables_find_target(name, XTF_TRY_LOAD);
+ 	if (!watcher) {
+-		fprintf(stderr, "Unable to load %s %s\n", name, typename);
++		fprintf(stderr, "Unable to load %s watcher\n", name);
+ 		return;
+ 	}
+ 
+@@ -564,16 +564,6 @@ static void __ebt_load_watcher(const char *name, const char *typename)
+ 		xtables_error(OTHER_PROBLEM, "Can't alloc memory");
+ }
+ 
+-static void ebt_load_watcher(const char *name)
+-{
+-	return __ebt_load_watcher(name, "watcher");
+-}
+-
+-static void ebt_load_target(const char *name)
+-{
+-	return __ebt_load_watcher(name, "target");
+-}
+-
+ void ebt_load_match_extensions(void)
+ {
+ 	opts = ebt_original_options;
+@@ -590,13 +580,6 @@ void ebt_load_match_extensions(void)
+ 
+ 	ebt_load_watcher("log");
+ 	ebt_load_watcher("nflog");
+-
+-	ebt_load_target("mark");
+-	ebt_load_target("dnat");
+-	ebt_load_target("snat");
+-	ebt_load_target("arpreply");
+-	ebt_load_target("redirect");
+-	ebt_load_target("standard");
+ }
+ 
+ void ebt_add_match(struct xtables_match *m,
+@@ -707,6 +690,9 @@ int ebt_command_default(struct iptables_command_state *cs)
+ 
+ 	/* Is it a watcher option? */
+ 	for (t = xtables_targets; t; t = t->next) {
++		if (!(t->ext_flags & XTABLES_EXT_WATCHER))
++			continue;
++
+ 		if (t->parse &&
+ 		    t->parse(cs->c - t->option_offset, cs->argv,
+ 			     ebt_invert, &t->tflags, NULL, &t->t)) {
+@@ -799,6 +785,11 @@ int do_commandeb(struct nft_handle *h, int argc, char *argv[], char **table,
+ 	optind = 0;
+ 	opterr = false;
+ 
++	for (t = xtables_targets; t; t = t->next) {
++		t->tflags = 0;
++		t->used = 0;
++	}
++
+ 	/* Getopt saves the day */
+ 	while ((c = getopt_long(argc, argv,
+ 	   "-:A:D:C:I:N:E:X::L::Z::F::P:Vhi:o:j:c:p:s:d:t:M:", opts, NULL)) != -1) {
+-- 
+2.40.0
+

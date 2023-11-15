@@ -1,0 +1,67 @@
+From 4ef8d59919d8693b8aaeff5d470e6d9eb254ebca Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Tue, 28 Feb 2023 18:09:25 +0100
+Subject: [PATCH] nft-restore: Fix for deletion of new, referenced rule
+
+Combining multiple corner-cases here:
+
+* Insert a rule before another new one which is not the first. Triggers
+  NFTNL_RULE_ID assignment of the latter.
+
+* Delete the referenced new rule in the same batch again. Causes
+  overwriting of the previously assigned RULE_ID.
+
+Consequently, iptables-nft-restore fails during *insert*, because the
+reference is dangling.
+
+Reported-by: Eric Garver <eric@garver.life>
+Fixes: 760b35b46e4cc ("nft: Fix for add and delete of same rule in single batch")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+Tested-by: Eric Garver <eric@garver.life>
+(cherry picked from commit 5fd85822bd12a02f1a921243f605fc6238d705b4)
+---
+ iptables/nft.c                                   |  3 ++-
+ .../ipt-restore/0003-restore-ordering_0          | 16 ++++++++++++++++
+ 2 files changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/iptables/nft.c b/iptables/nft.c
+index b70e9237a04ab..9a56b1fbffcbc 100644
+--- a/iptables/nft.c
++++ b/iptables/nft.c
+@@ -2104,7 +2104,8 @@ static int __nft_rule_del(struct nft_handle *h, struct nftnl_rule *r)
+ 
+ 	nftnl_rule_list_del(r);
+ 
+-	if (!nftnl_rule_get_u64(r, NFTNL_RULE_HANDLE))
++	if (!nftnl_rule_get_u64(r, NFTNL_RULE_HANDLE) &&
++	    !nftnl_rule_get_u32(r, NFTNL_RULE_ID))
+ 		nftnl_rule_set_u32(r, NFTNL_RULE_ID, ++h->rule_id);
+ 
+ 	obj = batch_rule_add(h, NFT_COMPAT_RULE_DELETE, r);
+diff --git a/iptables/tests/shell/testcases/ipt-restore/0003-restore-ordering_0 b/iptables/tests/shell/testcases/ipt-restore/0003-restore-ordering_0
+index 3f1d229e915ff..5482b7ea17298 100755
+--- a/iptables/tests/shell/testcases/ipt-restore/0003-restore-ordering_0
++++ b/iptables/tests/shell/testcases/ipt-restore/0003-restore-ordering_0
+@@ -123,3 +123,19 @@ EXPECT='-A FORWARD -m comment --comment "rule 1" -j ACCEPT
+ -A FORWARD -m comment --comment "rule 3" -j ACCEPT'
+ 
+ diff -u -Z <(echo -e "$EXPECT") <(ipt_show)
++
++# test adding, referencing and deleting the same rule in a batch
++
++$XT_MULTI iptables-restore <<EOF
++*filter
++-A FORWARD -m comment --comment "first rule" -j ACCEPT
++-A FORWARD -m comment --comment "referenced rule" -j ACCEPT
++-I FORWARD 2 -m comment --comment "referencing rule" -j ACCEPT
++-D FORWARD -m comment --comment "referenced rule" -j ACCEPT
++COMMIT
++EOF
++
++EXPECT='-A FORWARD -m comment --comment "first rule" -j ACCEPT
++-A FORWARD -m comment --comment "referencing rule" -j ACCEPT'
++
++diff -u -Z <(echo -e "$EXPECT") <(ipt_show)
+-- 
+2.40.0
+

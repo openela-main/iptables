@@ -1,0 +1,95 @@
+From 383c33a62877379b44ec58032cc707a43b662481 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Thu, 17 Nov 2022 16:10:14 +0100
+Subject: [PATCH] extensions: TOS: Fix v1 xlate callback
+
+Translation entirely ignored tos_mask field.
+
+Fixes: b669e18489709 ("extensions: libxt_TOS: Add translation to nft")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 161fb8ad126d8f330c8f59a4a1b5885d26477664)
+---
+ extensions/libxt_TOS.c      | 33 +++++++++++++++++++++++----------
+ extensions/libxt_TOS.txlate |  9 ++++++---
+ 2 files changed, 29 insertions(+), 13 deletions(-)
+
+diff --git a/extensions/libxt_TOS.c b/extensions/libxt_TOS.c
+index b66fa329f4150..4fc849bd2468b 100644
+--- a/extensions/libxt_TOS.c
++++ b/extensions/libxt_TOS.c
+@@ -183,28 +183,41 @@ static void tos_tg_save(const void *ip, const struct xt_entry_target *target)
+ 	printf(" --set-tos 0x%02x/0x%02x", info->tos_value, info->tos_mask);
+ }
+ 
++static int __tos_xlate(struct xt_xlate *xl, const char *ip,
++		       uint8_t tos, uint8_t tosmask)
++{
++	xt_xlate_add(xl, "%s dscp set ", ip);
++	if ((tosmask & 0x3f) == 0x3f)
++		xt_xlate_add(xl, "0x%02x", tos >> 2);
++	else if (!tos)
++		xt_xlate_add(xl, "%s dscp and 0x%02x",
++			     ip, (uint8_t)~tosmask >> 2);
++	else if (tos == tosmask)
++		xt_xlate_add(xl, "%s dscp or 0x%02x", ip, tos >> 2);
++	else if (!tosmask)
++		xt_xlate_add(xl, "%s dscp xor 0x%02x", ip, tos >> 2);
++	else
++		xt_xlate_add(xl, "%s dscp and 0x%02x xor 0x%02x",
++			     ip, (uint8_t)~tosmask >> 2, tos >> 2);
++	return 1;
++}
++
+ static int tos_xlate(struct xt_xlate *xl,
+ 		     const struct xt_xlate_tg_params *params)
+ {
+ 	const struct ipt_tos_target_info *info =
+ 			(struct ipt_tos_target_info *) params->target->data;
+-	uint8_t dscp = info->tos >> 2;
+-
+-	xt_xlate_add(xl, "ip dscp set 0x%02x", dscp);
+ 
+-	return 1;
++	return __tos_xlate(xl, "ip", info->tos, UINT8_MAX);
+ }
+ 
+ static int tos_xlate6(struct xt_xlate *xl,
+ 		     const struct xt_xlate_tg_params *params)
+ {
+-	const struct ipt_tos_target_info *info =
+-			(struct ipt_tos_target_info *) params->target->data;
+-	uint8_t dscp = info->tos >> 2;
++	const struct xt_tos_target_info *info =
++			(struct xt_tos_target_info *)params->target->data;
+ 
+-	xt_xlate_add(xl, "ip6 dscp set 0x%02x", dscp);
+-
+-	return 1;
++	return __tos_xlate(xl, "ip6", info->tos_value, info->tos_mask);
+ }
+ 
+ static struct xtables_target tos_tg_reg[] = {
+diff --git a/extensions/libxt_TOS.txlate b/extensions/libxt_TOS.txlate
+index 0952310edc4ac..9c12674299359 100644
+--- a/extensions/libxt_TOS.txlate
++++ b/extensions/libxt_TOS.txlate
+@@ -14,10 +14,13 @@ ip6tables-translate -A INPUT -j TOS --set-tos Normal-Service
+ nft add rule ip6 filter INPUT counter ip6 dscp set 0x00
+ 
+ ip6tables-translate -A INPUT -j TOS --and-tos 0x12
+-nft add rule ip6 filter INPUT counter ip6 dscp set 0x00
++nft add rule ip6 filter INPUT counter ip6 dscp set ip6 dscp and 0x04
+ 
+ ip6tables-translate -A INPUT -j TOS --or-tos 0x12
+-nft add rule ip6 filter INPUT counter ip6 dscp set 0x04
++nft add rule ip6 filter INPUT counter ip6 dscp set ip6 dscp or 0x04
+ 
+ ip6tables-translate -A INPUT -j TOS --xor-tos 0x12
+-nft add rule ip6 filter INPUT counter ip6 dscp set 0x04
++nft add rule ip6 filter INPUT counter ip6 dscp set ip6 dscp xor 0x04
++
++ip6tables-translate -A INPUT -j TOS --set-tos 0x12/0x34
++nft add rule ip6 filter INPUT counter ip6 dscp set ip6 dscp and 0x32 xor 0x04
+-- 
+2.40.0
+

@@ -1,0 +1,33 @@
+From e9dd197e783556dcb514ec624c4f6efeb782e7c7 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Fri, 13 Nov 2020 21:04:39 +0100
+Subject: [PATCH] libxtables: Drop leftover variable in
+ xtables_numeric_to_ip6addr()
+
+Variable 'err' was only used in removed debug code, so drop it as well.
+
+Fixes: 7f526c9373c17 ("libxtables: xtables: remove unnecessary debug code")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 97fabae738a74bd04a7793e1199cd2b8a69122bc)
+---
+ libxtables/xtables.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/libxtables/xtables.c b/libxtables/xtables.c
+index 7152c6576cd63..7f40b6f1b327b 100644
+--- a/libxtables/xtables.c
++++ b/libxtables/xtables.c
+@@ -1812,9 +1812,8 @@ const char *xtables_ip6mask_to_numeric(const struct in6_addr *addrp)
+ struct in6_addr *xtables_numeric_to_ip6addr(const char *num)
+ {
+ 	static struct in6_addr ap;
+-	int err;
+ 
+-	if ((err = inet_pton(AF_INET6, num, &ap)) == 1)
++	if (inet_pton(AF_INET6, num, &ap) == 1)
+ 		return &ap;
+ 
+ 	return NULL;
+-- 
+2.40.0
+

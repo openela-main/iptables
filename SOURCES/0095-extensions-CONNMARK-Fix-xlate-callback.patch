@@ -1,0 +1,88 @@
+From f6763e2336fb4eed696fc715375e3ea5a6855b20 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Thu, 17 Nov 2022 15:30:11 +0100
+Subject: [PATCH] extensions: CONNMARK: Fix xlate callback
+
+Bail out if nfmask != ctmask with XT_CONNMARK_SAVE and
+XT_CONNMARK_RESTORE. Looks like this needs a similar implementation to
+the one for XT_CONNMARK_SET.
+
+Fix shift mark translation: xt_connmark_shift_ops does not contain
+useful strings for nftables. Also add needed braces around the term
+being shifted.
+
+Fixes: db7b4e0de960c ("extensions: libxt_CONNMARK: Support bit-shifting for --restore,set and save-mark")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit e6747f6b1098b2bc7dfd482f287b3f90b351f164)
+---
+ extensions/libxt_CONNMARK.c      | 15 ++++++++++-----
+ extensions/libxt_CONNMARK.txlate |  3 +++
+ 2 files changed, 13 insertions(+), 5 deletions(-)
+
+diff --git a/extensions/libxt_CONNMARK.c b/extensions/libxt_CONNMARK.c
+index 21e1091386294..a6568c99b6c4d 100644
+--- a/extensions/libxt_CONNMARK.c
++++ b/extensions/libxt_CONNMARK.c
+@@ -595,11 +595,11 @@ static int connmark_tg_xlate_v2(struct xt_xlate *xl,
+ {
+ 	const struct xt_connmark_tginfo2 *info =
+ 		(const void *)params->target->data;
+-	const char *shift_op = xt_connmark_shift_ops[info->shift_dir];
++	const char *braces = info->shift_bits ? "( " : "";
+ 
+ 	switch (info->mode) {
+ 	case XT_CONNMARK_SET:
+-		xt_xlate_add(xl, "ct mark set ");
++		xt_xlate_add(xl, "ct mark set %s", braces);
+ 		if (info->ctmask == 0xFFFFFFFFU)
+ 			xt_xlate_add(xl, "0x%x ", info->ctmark);
+ 		else if (info->ctmark == 0)
+@@ -615,26 +615,31 @@ static int connmark_tg_xlate_v2(struct xt_xlate *xl,
+ 				     info->ctmark, ~info->ctmask);
+ 		break;
+ 	case XT_CONNMARK_SAVE:
+-		xt_xlate_add(xl, "ct mark set mark");
++		xt_xlate_add(xl, "ct mark set %smark", braces);
+ 		if (!(info->nfmask == UINT32_MAX &&
+ 		    info->ctmask == UINT32_MAX)) {
+ 			if (info->nfmask == info->ctmask)
+ 				xt_xlate_add(xl, " and 0x%x", info->nfmask);
++			else
++				return 0;
+ 		}
+ 		break;
+ 	case XT_CONNMARK_RESTORE:
+-		xt_xlate_add(xl, "meta mark set ct mark");
++		xt_xlate_add(xl, "meta mark set %sct mark", braces);
+ 		if (!(info->nfmask == UINT32_MAX &&
+ 		    info->ctmask == UINT32_MAX)) {
+ 			if (info->nfmask == info->ctmask)
+ 				xt_xlate_add(xl, " and 0x%x", info->nfmask);
++			else
++				return 0;
+ 		}
+ 		break;
+ 	}
+ 
+ 	if (info->mode <= XT_CONNMARK_RESTORE &&
+ 	    info->shift_bits != 0) {
+-		xt_xlate_add(xl, " %s %u", shift_op, info->shift_bits);
++		xt_xlate_add(xl, " ) %s %u",
++			     info->shift_dir ? ">>" : "<<", info->shift_bits);
+ 	}
+ 
+ 	return 1;
+diff --git a/extensions/libxt_CONNMARK.txlate b/extensions/libxt_CONNMARK.txlate
+index ce40ae5ea65e0..99627c2b05d45 100644
+--- a/extensions/libxt_CONNMARK.txlate
++++ b/extensions/libxt_CONNMARK.txlate
+@@ -18,3 +18,6 @@ nft add rule ip mangle PREROUTING counter ct mark set mark
+ 
+ iptables-translate -t mangle -A PREROUTING -j CONNMARK --restore-mark
+ nft add rule ip mangle PREROUTING counter meta mark set ct mark
++
++iptables-translate -t mangle -A PREROUTING  -j CONNMARK --set-mark 0x23/0x42 --right-shift-mark 5
++nft add rule ip mangle PREROUTING counter ct mark set ( ct mark xor 0x23 and 0xffffff9c ) >> 5
+-- 
+2.40.0
+

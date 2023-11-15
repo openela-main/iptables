@@ -1,0 +1,57 @@
+From 082a131316f145e29f77a1761294d343b8df320b Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Fri, 25 Nov 2022 04:35:35 +0100
+Subject: [PATCH] extensions: libxt_conntrack: Drop extra whitespace in xlate
+
+No point in having this. Interestingly, other test cases even made up
+for it.
+
+Fixes: 0afd957f6bc03 ("extensions: libxt_state: add translation to nft")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 116848ea1e5d8d02fd766356a642bd81574e2723)
+
+Conflicts:
+	extensions/libxt_hashlimit.txlate
+-> Adjusted to missing commit 023dd2c515be6
+   ("libxtables: xt_xlate_add() to take care of spacing").
+---
+ extensions/libxt_SYNPROXY.txlate  | 2 +-
+ extensions/libxt_conntrack.c      | 1 -
+ extensions/libxt_hashlimit.txlate | 4 ++--
+ 3 files changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/extensions/libxt_SYNPROXY.txlate b/extensions/libxt_SYNPROXY.txlate
+index b3de2b2a8c9dc..a2a3b6c522fe7 100644
+--- a/extensions/libxt_SYNPROXY.txlate
++++ b/extensions/libxt_SYNPROXY.txlate
+@@ -1,2 +1,2 @@
+ iptables-translate -t mangle -A INPUT -i iifname -p tcp -m tcp --dport 80 -m state --state INVALID,UNTRACKED -j SYNPROXY --sack-perm --timestamp --wscale 7 --mss 1460
+-nft add rule ip mangle INPUT iifname "iifname" tcp dport 80 ct state invalid,untracked  counter synproxy sack-perm timestamp wscale 7 mss 1460
++nft add rule ip mangle INPUT iifname "iifname" tcp dport 80 ct state invalid,untracked counter synproxy sack-perm timestamp wscale 7 mss 1460
+diff --git a/extensions/libxt_conntrack.c b/extensions/libxt_conntrack.c
+index 6ab5c99133d3c..6dfd942dcd5ab 100644
+--- a/extensions/libxt_conntrack.c
++++ b/extensions/libxt_conntrack.c
+@@ -1196,7 +1196,6 @@ static int state_xlate(struct xt_xlate *xl,
+ 	xt_xlate_add(xl, "ct state ");
+ 	state_xlate_print(xl, sinfo->state_mask,
+ 			  sinfo->invert_flags & XT_CONNTRACK_STATE);
+-	xt_xlate_add(xl, " ");
+ 	return 1;
+ }
+ 
+diff --git a/extensions/libxt_hashlimit.txlate b/extensions/libxt_hashlimit.txlate
+index 6c8d07f113d26..2fb6969befb4b 100644
+--- a/extensions/libxt_hashlimit.txlate
++++ b/extensions/libxt_hashlimit.txlate
+@@ -1,5 +1,5 @@
+ iptables-translate -A OUTPUT -m tcp -p tcp --dport 443 -m hashlimit --hashlimit-above 20kb/s --hashlimit-burst 1mb --hashlimit-mode dstip --hashlimit-name https --hashlimit-dstmask 24 -m state --state NEW -j DROP
+-nft add rule ip filter OUTPUT tcp dport 443 meter https { ip daddr and 255.255.255.0 timeout 60s limit rate over 20 kbytes/second burst 1 mbytes} ct state new  counter drop
++nft add rule ip filter OUTPUT tcp dport 443 meter https { ip daddr and 255.255.255.0 timeout 60s limit rate over 20 kbytes/second burst 1 mbytes} ct state new counter drop
+ 
+ iptables-translate -A OUTPUT -m tcp -p tcp --dport 443 -m hashlimit --hashlimit-upto 300 --hashlimit-burst 15 --hashlimit-mode srcip,dstip --hashlimit-name https --hashlimit-htable-expire 300000 -m state --state NEW -j DROP
+-nft add rule ip filter OUTPUT tcp dport 443 meter https { ip daddr . ip saddr timeout 300s limit rate 300/second burst 15 packets} ct state new  counter drop
++nft add rule ip filter OUTPUT tcp dport 443 meter https { ip daddr . ip saddr timeout 300s limit rate 300/second burst 15 packets} ct state new counter drop
+-- 
+2.40.0
+

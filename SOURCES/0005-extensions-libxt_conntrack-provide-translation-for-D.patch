@@ -1,0 +1,63 @@
+From 0323122f6a3ef9ab2ded571685d3c64851c6df86 Mon Sep 17 00:00:00 2001
+From: Pablo Neira Ayuso <pablo@netfilter.org>
+Date: Wed, 22 Jul 2020 13:04:34 +0200
+Subject: [PATCH] extensions: libxt_conntrack: provide translation for DNAT and
+ SNAT --ctstate
+
+iptables-translate -t filter -A INPUT -m conntrack --ctstate DNAT -j ACCEPT
+nft add rule ip filter INPUT ct status dnat counter accept
+
+Signed-off-by: Pablo Neira Ayuso <pablo@netfilter.org>
+(cherry picked from commit 26ec09bf6b9b674a7e3a65fc9c12599bd81dfe0f)
+---
+ extensions/libxt_conntrack.c      | 18 +++++++++++++-----
+ extensions/libxt_conntrack.txlate |  7 +++++++
+ 2 files changed, 20 insertions(+), 5 deletions(-)
+
+diff --git a/extensions/libxt_conntrack.c b/extensions/libxt_conntrack.c
+index 6f3503933e664..7734509c9af84 100644
+--- a/extensions/libxt_conntrack.c
++++ b/extensions/libxt_conntrack.c
+@@ -1249,11 +1249,19 @@ static int _conntrack3_mt_xlate(struct xt_xlate *xl,
+ 	}
+ 
+ 	if (sinfo->match_flags & XT_CONNTRACK_STATE) {
+-		xt_xlate_add(xl, "%sct state %s", space,
+-			     sinfo->invert_flags & XT_CONNTRACK_STATE ?
+-			     "!= " : "");
+-		state_xlate_print(xl, sinfo->state_mask);
+-		space = " ";
++		if ((sinfo->state_mask & XT_CONNTRACK_STATE_SNAT) ||
++		    (sinfo->state_mask & XT_CONNTRACK_STATE_DNAT)) {
++			xt_xlate_add(xl, "%sct status %s%s", space,
++				     sinfo->invert_flags & XT_CONNTRACK_STATUS ? "!=" : "",
++				     sinfo->state_mask & XT_CONNTRACK_STATE_SNAT ? "snat" : "dnat");
++			space = " ";
++		} else {
++			xt_xlate_add(xl, "%sct state %s", space,
++				     sinfo->invert_flags & XT_CONNTRACK_STATE ?
++				     "!= " : "");
++			state_xlate_print(xl, sinfo->state_mask);
++			space = " ";
++		}
+ 	}
+ 
+ 	if (sinfo->match_flags & XT_CONNTRACK_STATUS) {
+diff --git a/extensions/libxt_conntrack.txlate b/extensions/libxt_conntrack.txlate
+index 8a3d0181c71ef..d374f8a035f00 100644
+--- a/extensions/libxt_conntrack.txlate
++++ b/extensions/libxt_conntrack.txlate
+@@ -42,3 +42,10 @@ nft add rule ip filter INPUT ct direction original counter accept
+ 
+ iptables-translate -t filter -A INPUT -m conntrack --ctstate NEW --ctproto tcp --ctorigsrc 192.168.0.1 --ctorigdst 192.168.0.1 --ctreplsrc 192.168.0.1 --ctrepldst 192.168.0.1 --ctorigsrcport 12 --ctorigdstport 14 --ctreplsrcport 16 --ctrepldstport 18 --ctexpire 10 --ctstatus SEEN_REPLY --ctdir ORIGINAL -j ACCEPT
+ nft add rule ip filter INPUT ct direction original ct original protocol 6 ct state new ct status seen-reply ct expiration 10 ct original saddr 192.168.0.1 ct original daddr 192.168.0.1 ct reply saddr 192.168.0.1 ct reply daddr 192.168.0.1 ct original proto-src 12 ct original proto-dst 14 ct reply proto-src 16 ct reply proto-dst 18 counter accept
++
++iptables-translate -t filter -A INPUT -m conntrack --ctstate SNAT -j ACCEPT
++nft add rule ip filter INPUT ct status snat counter accept
++
++iptables-translate -t filter -A INPUT -m conntrack --ctstate DNAT -j ACCEPT
++nft add rule ip filter INPUT ct status dnat counter accept
++
+-- 
+2.40.0
+

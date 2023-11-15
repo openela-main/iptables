@@ -1,0 +1,33 @@
+From 169d4dd39aeeb9108810e95b6eb176b50701ff7e Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Thu, 1 Dec 2022 13:09:48 +0100
+Subject: [PATCH] nft: Fix for comparing ifname matches against nft-generated
+ ones
+
+Since nft adds the interface name as fixed-size string of 16 bytes,
+filling a mask based on the length value will not match the mask nft
+set.
+
+Fixes: 652b98e793711 ("xtables-compat: fix wildcard detection")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit f200aca7ff7b6a0edbe9024f0543b3f58111c50e)
+---
+ iptables/nft-shared.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/iptables/nft-shared.c b/iptables/nft-shared.c
+index 075ad620250dc..14b04b24085a0 100644
+--- a/iptables/nft-shared.c
++++ b/iptables/nft-shared.c
+@@ -243,7 +243,7 @@ static void parse_ifname(const char *name, unsigned int len, char *dst, unsigned
+ 	memcpy(dst, name, len);
+ 	if (name[len - 1] == '\0') {
+ 		if (mask)
+-			memset(mask, 0xff, len);
++			memset(mask, 0xff, strlen(name) + 1);
+ 		return;
+ 	}
+ 
+-- 
+2.40.0
+

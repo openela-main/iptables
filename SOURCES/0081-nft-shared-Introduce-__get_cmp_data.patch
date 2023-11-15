@@ -1,0 +1,67 @@
+From 116427bbf1365e2d284e7410a125205a983c0b1b Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Tue, 27 Sep 2022 23:15:37 +0200
+Subject: [PATCH] nft-shared: Introduce __get_cmp_data()
+
+This is an inner function to get_cmp_data() returning the op value as-is
+for caller examination.
+
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 8dc22798bf813ce92aaac58a6fe8749fe3fc18dc)
+
+Conflicts:
+	iptables/nft-shared.h
+-> Context change due to missing commit aa92ec96078d0
+   ("nft: pass struct nft_xt_ctx to parse_meta()").
+---
+ iptables/nft-shared.c | 17 ++++++++++-------
+ iptables/nft-shared.h |  1 +
+ 2 files changed, 11 insertions(+), 7 deletions(-)
+
+diff --git a/iptables/nft-shared.c b/iptables/nft-shared.c
+index 2b934ffc17756..cb1c2d61f52c1 100644
+--- a/iptables/nft-shared.c
++++ b/iptables/nft-shared.c
+@@ -373,17 +373,20 @@ static void nft_parse_match(struct nft_xt_ctx *ctx, struct nftnl_expr *e)
+ 		ctx->h->ops->parse_match(match, ctx->cs);
+ }
+ 
+-void get_cmp_data(struct nftnl_expr *e, void *data, size_t dlen, bool *inv)
++void __get_cmp_data(struct nftnl_expr *e, void *data, size_t dlen, uint8_t *op)
+ {
+ 	uint32_t len;
+-	uint8_t op;
+ 
+ 	memcpy(data, nftnl_expr_get(e, NFTNL_EXPR_CMP_DATA, &len), dlen);
+-	op = nftnl_expr_get_u32(e, NFTNL_EXPR_CMP_OP);
+-	if (op == NFT_CMP_NEQ)
+-		*inv = true;
+-	else
+-		*inv = false;
++	*op = nftnl_expr_get_u32(e, NFTNL_EXPR_CMP_OP);
++}
++
++void get_cmp_data(struct nftnl_expr *e, void *data, size_t dlen, bool *inv)
++{
++	uint8_t op;
++
++	__get_cmp_data(e, data, dlen, &op);
++	*inv = (op == NFT_CMP_NEQ);
+ }
+ 
+ static void nft_meta_set_to_target(struct nft_xt_ctx *ctx)
+diff --git a/iptables/nft-shared.h b/iptables/nft-shared.h
+index 2c5f2cfc012d5..3531631bd8acd 100644
+--- a/iptables/nft-shared.h
++++ b/iptables/nft-shared.h
+@@ -139,6 +139,7 @@ bool is_same_interfaces(const char *a_iniface, const char *a_outiface,
+ int parse_meta(struct nftnl_expr *e, uint8_t key, char *iniface,
+ 		unsigned char *iniface_mask, char *outiface,
+ 		unsigned char *outiface_mask, uint8_t *invflags);
++void __get_cmp_data(struct nftnl_expr *e, void *data, size_t dlen, uint8_t *op);
+ void get_cmp_data(struct nftnl_expr *e, void *data, size_t dlen, bool *inv);
+ void nft_rule_to_iptables_command_state(struct nft_handle *h,
+ 					const struct nftnl_rule *r,
+-- 
+2.40.0
+

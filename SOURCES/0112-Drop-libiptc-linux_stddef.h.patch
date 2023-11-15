@@ -1,0 +1,63 @@
+From f22984ed9aec54dad7fa5c1953f8d088ec56c002 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Sat, 3 Dec 2022 22:45:59 +0100
+Subject: [PATCH] Drop libiptc/linux_stddef.h
+
+This header was never included anywhere.
+
+Fixes: aae69bed01982 ("complete libiptc rewrite.  Time to load 10k rules goes down from 2.20 minutes to 1.255 seconds (!).  Might still contain bugs, use with caution.")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 53153775b08f830b940d04efbc7b38bc40aaa4b3)
+---
+ libiptc/linux_stddef.h | 39 ---------------------------------------
+ 1 file changed, 39 deletions(-)
+ delete mode 100644 libiptc/linux_stddef.h
+
+diff --git a/libiptc/linux_stddef.h b/libiptc/linux_stddef.h
+deleted file mode 100644
+index 56416f104ecfc..0000000000000
+--- a/libiptc/linux_stddef.h
++++ /dev/null
+@@ -1,39 +0,0 @@
+-#ifndef _LINUX_STDDEF_H
+-#define _LINUX_STDDEF_H
+-
+-#undef NULL
+-#if defined(__cplusplus)
+-#define NULL 0
+-#else
+-#define NULL ((void *)0)
+-#endif
+-
+-#undef offsetof
+-#define offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
+-
+-
+-/**
+- * container_of - cast a member of a structure out to the containing structure
+- *
+- * @ptr:	the pointer to the member.
+- * @type:	the type of the container struct this is embedded in.
+- * @member:	the name of the member within the struct.
+- *
+- */
+-#define container_of(ptr, type, member) ({			\
+-        const typeof( ((type *)0)->member ) *__mptr = (ptr);	\
+-        (type *)( (char *)__mptr - offsetof(type,member) );})
+-
+-/*
+- * Check at compile time that something is of a particular type.
+- * Always evaluates to 1 so you may use it easily in comparisons.
+- */
+-#define typecheck(type,x) \
+-({	type __dummy; \
+-	typeof(x) __dummy2; \
+-	(void)(&__dummy == &__dummy2); \
+-	1; \
+-})
+-
+-
+-#endif
+-- 
+2.40.0
+

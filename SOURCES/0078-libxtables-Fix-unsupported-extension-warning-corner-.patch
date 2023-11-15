@@ -1,0 +1,91 @@
+From a9527fc387066ed774bdce38598d21eb8e52d899 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Thu, 30 Jun 2022 18:04:39 +0200
+Subject: [PATCH] libxtables: Fix unsupported extension warning corner case
+
+Some extensions are not supported in revision 0 by user space anymore,
+for those the warning in xtables_compatible_revision() does not print as
+no revision 0 is tried.
+
+To fix this, one has to track if none of the user space supported
+revisions were accepted by the kernel. Therefore add respective logic to
+xtables_find_{target,match}().
+
+Note that this does not lead to duplicated warnings for unsupported
+extensions that have a revision 0 because xtables_compatible_revision()
+returns true for them to allow for extension's help output.
+
+For the record, these ip6tables extensions are affected: set/SET,
+socket, tos/TOS, TPROXY and SNAT. In addition to that, TEE is affected
+for both families.
+
+Fixes: 17534cb18ed0a ("Improve error messages for unsupported extensions")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 552c4a2f9e5706fef5f7abb27d1492a78bbb2a37)
+---
+ libxtables/xtables.c | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
+
+diff --git a/libxtables/xtables.c b/libxtables/xtables.c
+index 803551053c15f..598e43988e1a3 100644
+--- a/libxtables/xtables.c
++++ b/libxtables/xtables.c
+@@ -744,6 +744,7 @@ xtables_find_match(const char *name, enum xtables_tryload tryload,
+ 	struct xtables_match *ptr;
+ 	const char *icmp6 = "icmp6";
+ 	bool found = false;
++	bool seen = false;
+ 
+ 	if (strlen(name) >= XT_EXTENSION_MAXNAMELEN)
+ 		xtables_error(PARAMETER_PROBLEM,
+@@ -762,6 +763,7 @@ xtables_find_match(const char *name, enum xtables_tryload tryload,
+ 		if (extension_cmp(name, (*dptr)->name, (*dptr)->family)) {
+ 			ptr = *dptr;
+ 			*dptr = (*dptr)->next;
++			seen = true;
+ 			if (!found &&
+ 			    xtables_fully_register_pending_match(ptr, prev)) {
+ 				found = true;
+@@ -775,6 +777,11 @@ xtables_find_match(const char *name, enum xtables_tryload tryload,
+ 		dptr = &((*dptr)->next);
+ 	}
+ 
++	if (seen && !found)
++		fprintf(stderr,
++			"Warning: Extension %s is not supported, missing kernel module?\n",
++			name);
++
+ 	for (ptr = xtables_matches; ptr; ptr = ptr->next) {
+ 		if (extension_cmp(name, ptr->name, ptr->family)) {
+ 			struct xtables_match *clone;
+@@ -867,6 +874,7 @@ xtables_find_target(const char *name, enum xtables_tryload tryload)
+ 	struct xtables_target **dptr;
+ 	struct xtables_target *ptr;
+ 	bool found = false;
++	bool seen = false;
+ 
+ 	/* Standard target? */
+ 	if (strcmp(name, "") == 0
+@@ -885,6 +893,7 @@ xtables_find_target(const char *name, enum xtables_tryload tryload)
+ 		if (extension_cmp(name, (*dptr)->name, (*dptr)->family)) {
+ 			ptr = *dptr;
+ 			*dptr = (*dptr)->next;
++			seen = true;
+ 			if (!found &&
+ 			    xtables_fully_register_pending_target(ptr, prev)) {
+ 				found = true;
+@@ -898,6 +907,11 @@ xtables_find_target(const char *name, enum xtables_tryload tryload)
+ 		dptr = &((*dptr)->next);
+ 	}
+ 
++	if (seen && !found)
++		fprintf(stderr,
++			"Warning: Extension %s is not supported, missing kernel module?\n",
++			name);
++
+ 	for (ptr = xtables_targets; ptr; ptr = ptr->next) {
+ 		if (extension_cmp(name, ptr->name, ptr->family)) {
+ 			struct xtables_target *clone;
+-- 
+2.40.0
+

@@ -1,0 +1,29 @@
+From 2f80e6d896590f42c932de32ae8c3d597cbf940b Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Wed, 2 Jun 2021 12:50:57 +0200
+Subject: [PATCH] iptables-apply: Drop unused variable
+
+It was assigned to but never read.
+
+Fixes: b45b4e3903414 ("iptables-apply: script and manpage update")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 084671d5acaaf749648e828c2ed3b319de651764)
+---
+ iptables/iptables-apply | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/iptables/iptables-apply b/iptables/iptables-apply
+index 4683b1b402d08..3a7df5e3cbc1f 100755
+--- a/iptables/iptables-apply
++++ b/iptables/iptables-apply
+@@ -231,7 +231,6 @@ case "$MODE" in
+ 		"$RUNCMD" &
+ 		CMD_PID=$!
+ 		( sleep "$TIMEOUT"; kill "$CMD_PID" 2>/dev/null; exit 0 ) &
+-		CMDTIMEOUT_PID=$!
+ 		if ! wait "$CMD_PID"; then
+ 			echo "failed."
+ 			echo "Error: unknown error running command: $RUNCMD" >&2
+-- 
+2.40.0
+

@@ -1,0 +1,67 @@
+From 4cde53b041a39a0fe9a1c2701b00216f34510f7b Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Sat, 15 Jul 2023 01:35:39 +0200
+Subject: [PATCH] nft: Do not pass nft_rule_ctx to add_nft_among()
+
+It is not used, must be a left-over from an earlier version of the fixed
+commit.
+
+Fixes: 4e95200ded923 ("nft-bridge: pass context structure to ops->add() to improve anonymous set support")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit bd71c11a95ab2b44794843fd8a3698039a7db211)
+
+Conflicts:
+	iptables/nft.c
+-> Context conflict due to missing other native expression conversions.
+---
+ iptables/nft.c | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)
+
+diff --git a/iptables/nft.c b/iptables/nft.c
+index 936204a432621..c3b819f1934a8 100644
+--- a/iptables/nft.c
++++ b/iptables/nft.c
+@@ -1064,8 +1064,7 @@ gen_lookup(uint32_t sreg, const char *set_name, uint32_t set_id, uint32_t flags)
+ #define NFT_DATATYPE_ETHERADDR	9
+ 
+ static int __add_nft_among(struct nft_handle *h, const char *table,
+-			   struct nft_rule_ctx *ctx, struct nftnl_rule *r,
+-			   struct nft_among_pair *pairs,
++			   struct nftnl_rule *r, struct nft_among_pair *pairs,
+ 			   int cnt, bool dst, bool inv, bool ip)
+ {
+ 	uint32_t set_id, type = NFT_DATATYPE_ETHERADDR, len = ETH_ALEN;
+@@ -1143,7 +1142,7 @@ static int __add_nft_among(struct nft_handle *h, const char *table,
+ 	return 0;
+ }
+ 
+-static int add_nft_among(struct nft_handle *h, struct nft_rule_ctx *ctx,
++static int add_nft_among(struct nft_handle *h,
+ 			 struct nftnl_rule *r, struct xt_entry_match *m)
+ {
+ 	struct nft_among_data *data = (struct nft_among_data *)m->data;
+@@ -1158,10 +1157,10 @@ static int add_nft_among(struct nft_handle *h, struct nft_rule_ctx *ctx,
+ 	}
+ 
+ 	if (data->src.cnt)
+-		__add_nft_among(h, table, ctx, r, data->pairs, data->src.cnt,
++		__add_nft_among(h, table, r, data->pairs, data->src.cnt,
+ 				false, data->src.inv, data->src.ip);
+ 	if (data->dst.cnt)
+-		__add_nft_among(h, table, ctx, r, data->pairs + data->src.cnt,
++		__add_nft_among(h, table, r, data->pairs + data->src.cnt,
+ 				data->dst.cnt, true, data->dst.inv,
+ 				data->dst.ip);
+ 	return 0;
+@@ -1180,7 +1179,7 @@ int add_match(struct nft_handle *h, struct nft_rule_ctx *ctx,
+ 		if (!strcmp(m->u.user.name, "limit"))
+ 			return add_nft_limit(r, m);
+ 		else if (!strcmp(m->u.user.name, "among"))
+-			return add_nft_among(h, ctx, r, m);
++			return add_nft_among(h, r, m);
+ 		break;
+ 	default:
+ 		break;
+-- 
+2.40.0
+

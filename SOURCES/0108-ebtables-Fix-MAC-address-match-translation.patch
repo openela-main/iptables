@@ -1,0 +1,63 @@
+From 37e59c5df0e7cdd9f7e4673248abd92cc02d569c Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Thu, 1 Dec 2022 13:03:49 +0100
+Subject: [PATCH] ebtables: Fix MAC address match translation
+
+If a mask was present, ebtables-translate would emit illegal syntax.
+
+Fixes: 5e2b473a64bc7 ("xtables-compat: extend generic tests for masks and wildcards")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 39589b3edb7c0ea3e64777c7f4cdbf45be55ce53)
+
+Conflicts:
+	extensions/generic.txlate
+-> Adjusted to missing commit 09d63e818ae0d
+   ("extensions: change expected output for new format")
+-> Adjust to missing commit 023dd2c515be6
+   ("libxtables: xt_xlate_add() to take care of spacing").
+---
+ extensions/generic.txlate | 2 +-
+ iptables/nft-bridge.c     | 6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/extensions/generic.txlate b/extensions/generic.txlate
+index 6779d6f86dec8..44b84e3b23515 100644
+--- a/extensions/generic.txlate
++++ b/extensions/generic.txlate
+@@ -65,7 +65,7 @@ ebtables-translate -A FORWARD ! -i iname --logical-in ilogname -o out+ --logical
+ nft add rule bridge filter FORWARD iifname != "iname" meta ibrname "ilogname" oifname "out*" meta obrname "lout*" ether daddr 01:02:03:04:de:af counter
+ 
+ ebtables-translate -I INPUT -p ip -d 1:2:3:4:5:6/ff:ff:ff:ff:00:00
+-nft insert rule bridge filter INPUT ether type 0x800 ether daddr 01:02:03:04:00:00 and ff:ff:ff:ff:00:00 == 01:02:03:04:00:00 counter
++nft insert rule bridge filter INPUT ether type 0x800 ether daddr and ff:ff:ff:ff:00:00 == 01:02:03:04:00:00 counter
+ 
+ ebtables-translate -I INPUT -p Length
+ nft insert rule bridge filter INPUT ether type < 0x0600 counter
+diff --git a/iptables/nft-bridge.c b/iptables/nft-bridge.c
+index fbed1616253a6..48bcda61cfb9c 100644
+--- a/iptables/nft-bridge.c
++++ b/iptables/nft-bridge.c
+@@ -863,17 +863,17 @@ static void nft_bridge_xlate_mac(struct xt_xlate *xl, const char *type, bool inv
+ 
+ 	xt_xlate_add(xl, "ether %s %s", type, invert ? "!= " : "");
+ 
+-	xlate_mac(xl, mac);
+-
+ 	if (memcmp(mask, one_msk, ETH_ALEN)) {
+ 		int i;
+-		xt_xlate_add(xl, " and ");
++		xt_xlate_add(xl, "and ");
+ 
+ 		xlate_mac(xl, mask);
+ 
+ 		xt_xlate_add(xl, " == %02x", mac[0] & mask[0]);
+ 		for (i=1; i < ETH_ALEN; i++)
+ 			xt_xlate_add(xl, ":%02x", mac[i] & mask[i]);
++	} else {
++		xlate_mac(xl, mac);
+ 	}
+ 
+ 	xt_xlate_add(xl, " ");
+-- 
+2.40.0
+

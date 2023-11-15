@@ -1,0 +1,31 @@
+From 4f87be23b73378c42f7d555c527666d83650de46 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Fri, 28 Apr 2023 14:33:43 +0200
+Subject: [PATCH] arptables: Fix parsing of inverted 'arp operation' match
+
+The wrong bit was set in 'invflags', probably due to copy'n'paste from
+the previous case.
+
+Fixes: 84909d171585d ("xtables: bootstrap ARP compatibility layer for nftables")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 092e4b022152addc94524e2ba0cb608dac1a3a08)
+---
+ iptables/nft-arp.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/iptables/nft-arp.c b/iptables/nft-arp.c
+index 398face687fbf..ab1108dd69685 100644
+--- a/iptables/nft-arp.c
++++ b/iptables/nft-arp.c
+@@ -249,7 +249,7 @@ static void nft_arp_parse_payload(struct nft_xt_ctx *ctx,
+ 		fw->arp.arhln = ar_hln;
+ 		fw->arp.arhln_mask = 0xff;
+ 		if (inv)
+-			fw->arp.invflags |= IPT_INV_ARPOP;
++			fw->arp.invflags |= IPT_INV_ARPHLN;
+ 		break;
+ 	case offsetof(struct arphdr, ar_pln):
+ 		get_cmp_data(e, &ar_pln, sizeof(ar_pln), &inv);
+-- 
+2.40.0
+

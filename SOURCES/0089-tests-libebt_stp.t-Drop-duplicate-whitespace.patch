@@ -1,0 +1,29 @@
+From 8b8249ce6128e0b9f909535e63629c10920af4ec Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Wed, 5 Oct 2022 20:29:36 +0200
+Subject: [PATCH] tests: libebt_stp.t: Drop duplicate whitespace
+
+Code was fixed but the testcase adjustment slipped through.
+
+Fixes: 262dff31a998e ("extensions: libebt_stp: Eliminate duplicate space in output")
+(cherry picked from commit dafb31980c4469fd28964b9703d3c77433cc7d21)
+---
+ extensions/libebt_stp.t | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/extensions/libebt_stp.t b/extensions/libebt_stp.t
+index 0c6b77b91454b..17d6c1c0978e3 100644
+--- a/extensions/libebt_stp.t
++++ b/extensions/libebt_stp.t
+@@ -1,7 +1,7 @@
+ :INPUT,FORWARD,OUTPUT
+ --stp-type 1;=;OK
+ --stp-flags 0x1;--stp-flags topology-change -j CONTINUE;OK
+---stp-root-prio 1  -j ACCEPT;=;OK
++--stp-root-prio 1 -j ACCEPT;=;OK
+ --stp-root-addr 0d:ea:d0:0b:ee:f0;=;OK
+ --stp-root-cost 1;=;OK
+ --stp-sender-prio 1;=;OK
+-- 
+2.40.0
+

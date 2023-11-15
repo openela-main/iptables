@@ -1,0 +1,39 @@
+From 80c0fef76c5b3f78b1261f8c15b10d58382a5c3f Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Thu, 12 Aug 2021 15:12:30 +0200
+Subject: [PATCH] tests: xlate-test: Print errors to stderr
+
+Return code is always zero, so grepping for output on stderr is a
+simple way to detect testsuite failures.
+
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 5166c4451fb837e7d5dbb54a7d7cbf2f0c2469cc)
+---
+ xlate-test.py | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/xlate-test.py b/xlate-test.py
+index 4c014f9bd269a..50e9893e956aa 100755
+--- a/xlate-test.py
++++ b/xlate-test.py
+@@ -65,7 +65,7 @@ xtables_nft_multi = 'xtables-nft-multi'
+     if (passed == tests) and not args.test:
+         print(name + ": " + green("OK"))
+     if not test_passed:
+-        print("\n".join(result))
++        print("\n".join(result), file=sys.stderr)
+     if args.test:
+         print("1 test file, %d tests, %d tests passed, %d tests failed, %d errors" % (tests, passed, failed, errors))
+     else:
+@@ -101,7 +101,7 @@ xtables_nft_multi = 'xtables-nft-multi'
+             with open(args.test, "r") as payload:
+                 run_test(args.test, payload)
+         except IOError:
+-            print(red("Error: ") + "test file does not exist")
++            print(red("Error: ") + "test file does not exist", file=sys.stderr)
+     else:
+         load_test_files()
+ 
+-- 
+2.40.0
+

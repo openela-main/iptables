@@ -1,0 +1,31 @@
+From 59c41217b2acc9409ba50a76a40aaa994c83f454 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Tue, 3 Aug 2021 10:55:20 +0200
+Subject: [PATCH] nft: Fix for non-verbose check command
+
+Check command was unconditionally verbose since v1.8.5. Make it respect
+--verbose option again.
+
+Fixes: a7f1e208cdf9c ("nft: split parsing from netlink commands")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 57d1422dbbc41c36ed2e9f6c67aa040c65a429a0)
+---
+ iptables/nft.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/iptables/nft.c b/iptables/nft.c
+index 7f87d46dcc44c..f8534c6cd56fb 100644
+--- a/iptables/nft.c
++++ b/iptables/nft.c
+@@ -3160,7 +3160,7 @@ static int nft_prepare(struct nft_handle *h)
+ 		case NFT_COMPAT_RULE_CHECK:
+ 			assert_chain_exists(h, cmd->table, cmd->jumpto);
+ 			ret = nft_rule_check(h, cmd->chain, cmd->table,
+-					     cmd->obj.rule, cmd->rulenum);
++					     cmd->obj.rule, cmd->verbose);
+ 			break;
+ 		case NFT_COMPAT_RULE_ZERO:
+ 			ret = nft_rule_zero_counters(h, cmd->chain, cmd->table,
+-- 
+2.40.0
+

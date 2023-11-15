@@ -1,0 +1,90 @@
+From 3b42685aeedbb81f7dc6af0e1eb35200236449d2 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Fri, 3 Feb 2023 17:37:40 +0100
+Subject: [PATCH] extensions: libebt_ip: Translation has to match on ether type
+
+On one hand, nft refuses th expression in bridge family if layer3
+protocol has not been assured by a previous match. On the other, ebt_ip
+kernel module will only match on IPv4 packets, so there might be a
+functional change in the translation versus the original.
+
+Instead of just always emitting an 'ether type' match, decide whether
+it's actually needed - explicit "ip <something>" payload matches (or
+icmp ones) cause implicit creation of a match on IPv4 by nft.
+
+Fixes: 03ecffe6c2cc0 ("ebtables-compat: add initial translations")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit b860e658200af8fdeced2896a1a6c2f0f0692b70)
+
+Conflicts:
+	extensions/libebt_ip.txlate
+-> Adjusted to missing commit 09d63e818ae0d
+   ("extensions: change expected output for new format").
+---
+ extensions/libebt_ip.c      | 21 +++++++++++++++++++++
+ extensions/libebt_ip.txlate |  6 +++---
+ 2 files changed, 24 insertions(+), 3 deletions(-)
+
+diff --git a/extensions/libebt_ip.c b/extensions/libebt_ip.c
+index 7b6fa4a2139d4..81500828fe74c 100644
+--- a/extensions/libebt_ip.c
++++ b/extensions/libebt_ip.c
+@@ -667,6 +667,24 @@ static void brip_xlate_nh(struct xt_xlate *xl,
+ 				  xtables_ipmask_to_numeric(maskp));
+ }
+ 
++static bool may_skip_ether_type_dep(uint8_t flags)
++{
++	/* these convert to "ip (s|d)addr" matches */
++	if (flags & (EBT_IP_SOURCE | EBT_IP_DEST))
++		return true;
++
++	/* icmp match triggers implicit ether type dependency in nft */
++	if (flags & EBT_IP_ICMP)
++		return true;
++
++	/* allow if "ip protocol" match is created by brip_xlate() */
++	if (flags & EBT_IP_PROTO &&
++	    !(flags & (EBT_IP_SPORT | EBT_IP_DPORT | EBT_IP_ICMP)))
++		return true;
++
++	return false;
++}
++
+ static int brip_xlate(struct xt_xlate *xl,
+ 		      const struct xt_xlate_mt_params *params)
+ {
+@@ -676,6 +694,9 @@ static int brip_xlate(struct xt_xlate *xl,
+ 	brip_xlate_nh(xl, info, EBT_IP_SOURCE);
+ 	brip_xlate_nh(xl, info, EBT_IP_DEST);
+ 
++	if (!may_skip_ether_type_dep(info->bitmask))
++		xt_xlate_add(xl, "ether type ip ");
++
+ 	if (info->bitmask & EBT_IP_TOS) {
+ 		xt_xlate_add(xl, "@nh,8,8 ");
+ 		if (info->invflags & EBT_IP_TOS)
+diff --git a/extensions/libebt_ip.txlate b/extensions/libebt_ip.txlate
+index 5c766e1b743ea..cc42d2dbacf65 100644
+--- a/extensions/libebt_ip.txlate
++++ b/extensions/libebt_ip.txlate
+@@ -5,13 +5,13 @@ ebtables-translate -I FORWARD -p ip --ip-dst 10.0.0.1
+ nft insert rule bridge filter FORWARD ip daddr 10.0.0.1 counter
+ 
+ ebtables-translate -I OUTPUT 3 -p ip -o eth0 --ip-tos 0xff
+-nft insert rule bridge filter OUTPUT oifname "eth0" @nh,8,8 0xff counter
++nft insert rule bridge filter OUTPUT oifname "eth0" ether type ip @nh,8,8 0xff counter
+ 
+ ebtables-translate -A FORWARD -p ip --ip-proto tcp --ip-dport 22
+-nft add rule bridge filter FORWARD tcp dport 22 counter
++nft add rule bridge filter FORWARD ether type ip tcp dport 22 counter
+ 
+ ebtables-translate -A FORWARD -p ip --ip-proto udp --ip-sport 1024:65535
+-nft add rule bridge filter FORWARD udp sport 1024-65535 counter
++nft add rule bridge filter FORWARD ether type ip udp sport 1024-65535 counter
+ 
+ ebtables-translate -A FORWARD -p ip --ip-proto 253
+ nft add rule bridge filter FORWARD ip protocol 253 counter
+-- 
+2.40.0
+

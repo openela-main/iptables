@@ -1,0 +1,30 @@
+From ccbf512feab4e8fc4bb4e2c0ee7747f2624edc3e Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Mon, 6 Sep 2021 13:49:34 +0200
+Subject: [PATCH] tests: iptables-test: Exit non-zero on error
+
+If any test fails, return a non-zero exit code.
+
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 7559af835d8f58375f797f895e1a5410027127d9)
+---
+ iptables-test.py | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/iptables-test.py b/iptables-test.py
+index 06b9937bbf0e5..0d21f975305db 100755
+--- a/iptables-test.py
++++ b/iptables-test.py
+@@ -405,7 +405,8 @@ log_file = None
+             test_files += 1
+ 
+     print("%d test files, %d unit tests, %d passed" % (test_files, tests, passed))
++    return passed - tests
+ 
+ 
+ if __name__ == '__main__':
+-    main()
++    sys.exit(main())
+-- 
+2.40.0
+

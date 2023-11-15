@@ -1,0 +1,91 @@
+From d5b7963f7ae493ba797bb23188f3db5ed27b7a74 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Mon, 6 Sep 2021 13:07:43 +0200
+Subject: [PATCH] tests: xlate-test: Exit non-zero on error
+
+If a test fails, return a non-zero exit code. To do so, propagate the
+pass/fail statistics up to main() for evaluation. While being at it,
+move the statistics printing into there as well and get rid of that
+redundant assignment to 'test_passed'.
+
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit c057939d80cc6219a137784c195e14ee1bc62a58)
+---
+ xlate-test.py | 26 ++++++++++++++++----------
+ 1 file changed, 16 insertions(+), 10 deletions(-)
+
+diff --git a/xlate-test.py b/xlate-test.py
+index 50e9893e956aa..7299dc747295f 100755
+--- a/xlate-test.py
++++ b/xlate-test.py
+@@ -54,7 +54,6 @@ xtables_nft_multi = 'xtables-nft-multi'
+                     result.append(magenta("src: ") + line.rstrip(" \n"))
+                     result.append(magenta("exp: ") + expected)
+                     result.append(magenta("res: ") + translation + "\n")
+-                    test_passed = False
+                 else:
+                     passed += 1
+             else:
+@@ -66,10 +65,7 @@ xtables_nft_multi = 'xtables-nft-multi'
+         print(name + ": " + green("OK"))
+     if not test_passed:
+         print("\n".join(result), file=sys.stderr)
+-    if args.test:
+-        print("1 test file, %d tests, %d tests passed, %d tests failed, %d errors" % (tests, passed, failed, errors))
+-    else:
+-        return tests, passed, failed, errors
++    return tests, passed, failed, errors
+ 
+ 
+ def load_test_files():
+@@ -83,10 +79,9 @@ xtables_nft_multi = 'xtables-nft-multi'
+                 total_passed += passed
+                 total_failed += failed
+                 total_error += errors
++    return (test_files, total_tests, total_passed, total_failed, total_error)
+ 
+ 
+-    print("%d test files, %d tests, %d tests passed, %d tests failed, %d errors" % (test_files, total_tests, total_passed, total_failed, total_error))
+-
+ def main():
+     global xtables_nft_multi
+     if not args.host:
+@@ -94,16 +89,27 @@ xtables_nft_multi = 'xtables-nft-multi'
+         xtables_nft_multi = os.path.abspath(os.path.curdir) \
+                             + '/iptables/' + xtables_nft_multi
+ 
++    files = tests = passed = failed = errors = 0
+     if args.test:
+         if not args.test.endswith(".txlate"):
+             args.test += ".txlate"
+         try:
+             with open(args.test, "r") as payload:
+-                run_test(args.test, payload)
++                files = 1
++                tests, passed, failed, errors = run_test(args.test, payload)
+         except IOError:
+             print(red("Error: ") + "test file does not exist", file=sys.stderr)
++            return -1
++    else:
++        files, tests, passed, failed, errors = load_test_files()
++
++    if files > 1:
++        file_word = "files"
+     else:
+-        load_test_files()
++        file_word = "file"
++    print("%d test %s, %d tests, %d tests passed, %d tests failed, %d errors"
++            % (files, file_word, tests, passed, failed, errors))
++    return passed - tests
+ 
+ 
+ parser = argparse.ArgumentParser()
+@@ -111,4 +117,4 @@ parser.add_argument('-H', '--host', action='store_true',
+                     help='Run tests against installed binaries')
+ parser.add_argument("test", nargs="?", help="run only the specified test file")
+ args = parser.parse_args()
+-main()
++sys.exit(main())
+-- 
+2.40.0
+

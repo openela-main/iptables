@@ -1,0 +1,64 @@
+From 50470c652e32b3bc2025d45e4d39b47c0aba8e23 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Wed, 15 Sep 2021 17:47:15 +0200
+Subject: [PATCH] tests: iptables-test: Fix conditional colors on stderr
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Štěpán's patch to make colored output depend on whether output is a TTY
+clashed with my change to print errors to stderr instead of stdout.
+
+Fix this by telling maybe_colored() if it should print colors or not as
+only caller knows where output is sent to.
+
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 2ed6dc7557b8c4a70bfd81684a72737312d7bd4b)
+---
+ iptables-test.py | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/iptables-test.py b/iptables-test.py
+index fb9503b6fffb4..d54ed428ddefb 100755
+--- a/iptables-test.py
++++ b/iptables-test.py
+@@ -33,15 +33,16 @@ LOGFILE="/tmp/iptables-test.log"
+ log_file = None
+ 
+ STDOUT_IS_TTY = sys.stdout.isatty()
++STDERR_IS_TTY = sys.stderr.isatty()
+ 
+-def maybe_colored(color, text):
++def maybe_colored(color, text, isatty):
+     terminal_sequences = {
+         'green': '\033[92m',
+         'red': '\033[91m',
+     }
+ 
+     return (
+-        terminal_sequences[color] + text + '\033[0m' if STDOUT_IS_TTY else text
++        terminal_sequences[color] + text + '\033[0m' if isatty else text
+     )
+ 
+ 
+@@ -49,7 +50,7 @@ STDOUT_IS_TTY = sys.stdout.isatty()
+     '''
+     Prints an error with nice colors, indicating file and line number.
+     '''
+-    print(filename + ": " + maybe_colored('red', "ERROR") +
++    print(filename + ": " + maybe_colored('red', "ERROR", STDERR_IS_TTY) +
+         ": line %d (%s)" % (lineno, reason), file=sys.stderr)
+ 
+ 
+@@ -285,7 +286,7 @@ STDOUT_IS_TTY = sys.stdout.isatty()
+     if netns:
+         execute_cmd("ip netns del ____iptables-container-test", filename, 0)
+     if total_test_passed:
+-        print(filename + ": " + maybe_colored('green', "OK"))
++        print(filename + ": " + maybe_colored('green', "OK", STDOUT_IS_TTY))
+ 
+     f.close()
+     return tests, passed
+-- 
+2.40.0
+

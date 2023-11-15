@@ -1,0 +1,61 @@
+From a40839b6c6d5d9742a5316ed3b4bd13516537ee1 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Thu, 2 Jun 2022 13:44:45 +0200
+Subject: [PATCH] tests: shell: Check overhead in iptables-save and -restore
+
+Some repeated calls have been reduced recently, assert this in a test
+evaluating strace output.
+
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 0416ae5dea134b33e22c97e68b64010d679debe1)
+---
+ .../shell/testcases/ipt-save/0007-overhead_0  | 37 +++++++++++++++++++
+ 1 file changed, 37 insertions(+)
+ create mode 100755 iptables/tests/shell/testcases/ipt-save/0007-overhead_0
+
+diff --git a/iptables/tests/shell/testcases/ipt-save/0007-overhead_0 b/iptables/tests/shell/testcases/ipt-save/0007-overhead_0
+new file mode 100755
+index 0000000000000..b86d71f209471
+--- /dev/null
++++ b/iptables/tests/shell/testcases/ipt-save/0007-overhead_0
+@@ -0,0 +1,37 @@
++#!/bin/bash
++
++# Test recent performance improvements in iptables-save due to reduced
++# overhead.
++
++strace --version >/dev/null || { echo "skip for missing strace"; exit 0; }
++
++RULESET=$(
++	echo "*filter"
++	for ((i = 0; i < 100; i++)); do
++		echo ":mychain$i -"
++		echo "-A FORWARD -p tcp --dport 22 -j mychain$i"
++	done
++	echo "COMMIT"
++)
++
++RESTORE_STRACE=$(strace $XT_MULTI iptables-restore <<< "$RULESET" 2>&1 >/dev/null)
++SAVE_STRACE=$(strace $XT_MULTI iptables-save 2>&1 >/dev/null)
++
++do_grep() { # (name, threshold, pattern)
++	local cnt=$(grep -c "$3")
++	[[ $cnt -le $2 ]] && return 0
++	echo "ERROR: Too many $3 lookups for $1: $cnt > $2"
++	exit 1
++}
++
++# iptables prefers hard-coded protocol names instead of looking them up first
++
++do_grep "$XT_MULTI iptables-restore" 0 /etc/protocols <<< "$RESTORE_STRACE"
++do_grep "$XT_MULTI iptables-save" 0 /etc/protocols <<< "$SAVE_STRACE"
++
++# iptables-nft-save pointlessly checked whether chain jumps are targets
++
++do_grep "$XT_MULTI iptables-restore" 10 libxt_ <<< "$RESTORE_STRACE"
++do_grep "$XT_MULTI iptables-save" 10 libxt_ <<< "$SAVE_STRACE"
++
++exit 0
+-- 
+2.40.0
+

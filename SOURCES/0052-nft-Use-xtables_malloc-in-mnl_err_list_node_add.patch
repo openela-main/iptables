@@ -1,0 +1,31 @@
+From 71f9eda379a3d70b5b2cd9327e41ba5446c618e1 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Tue, 31 Aug 2021 12:26:20 +0200
+Subject: [PATCH] nft: Use xtables_malloc() in mnl_err_list_node_add()
+
+The function called malloc() without checking for memory allocation
+failure. Simply replace the call by xtables_malloc() to fix that.
+
+Fixes: 4e2020952d6f9 ("xtables: use libnftnl batch API")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit ca11c7b7036b5821c17b8d08dc2a29f55b461a93)
+---
+ iptables/nft.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/iptables/nft.c b/iptables/nft.c
+index f8534c6cd56fb..ba59cfb8c47af 100644
+--- a/iptables/nft.c
++++ b/iptables/nft.c
+@@ -143,7 +143,7 @@ struct mnl_err {
+ static void mnl_err_list_node_add(struct list_head *err_list, int error,
+ 				  int seqnum)
+ {
+-	struct mnl_err *err = malloc(sizeof(struct mnl_err));
++	struct mnl_err *err = xtables_malloc(sizeof(struct mnl_err));
+ 
+ 	err->seqnum = seqnum;
+ 	err->err = error;
+-- 
+2.40.0
+

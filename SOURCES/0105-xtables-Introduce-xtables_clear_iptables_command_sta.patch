@@ -1,0 +1,219 @@
+From 4d1c89af40811d5527ab5c2b629245076d970542 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Fri, 25 Nov 2022 21:42:20 +0100
+Subject: [PATCH] xtables: Introduce xtables_clear_iptables_command_state()
+
+This is nft_clear_iptables_command_state() but in a location reachable
+by legacy iptables, too.
+
+Changes callers in non-family-specific code to use clear_cs callback
+instead of directly calling it - ebtables still has a custom variant.
+
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 365647ef056828bc3cb56efef12114951fcb730d)
+
+Conflicts:
+	iptables/nft-arp.c
+	iptables/nft-shared.c
+	iptables/nft-shared.h
+	iptables/xshared.c
+-> Context change due to missing commits cfdda18044d81
+   ("nft-shared: Introduce init_cs family ops callback") and
+   62c3c93d4b0f5 ("xshared: Move do_parse to shared space").
+-> Adjust to missing commit 0af80a91b0a98
+   ("nft: Merge xtables-arp-standalone.c into xtables-standalone.c").
+
+(cherry picked from commit 42792a2949749794487519575119ee1083975a76)
+---
+ iptables/nft-arp.c           |  4 ++--
+ iptables/nft-ipv4.c          |  4 ++--
+ iptables/nft-ipv6.c          |  4 ++--
+ iptables/nft-shared.c        | 14 --------------
+ iptables/nft-shared.h        |  1 -
+ iptables/xshared.c           | 17 +++++++++++++++++
+ iptables/xshared.h           |  2 ++
+ iptables/xtables-arp.c       |  2 +-
+ iptables/xtables-translate.c |  2 +-
+ iptables/xtables.c           |  2 +-
+ 10 files changed, 28 insertions(+), 24 deletions(-)
+
+diff --git a/iptables/nft-arp.c b/iptables/nft-arp.c
+index d55e06572b283..b90f53990fd4f 100644
+--- a/iptables/nft-arp.c
++++ b/iptables/nft-arp.c
+@@ -501,7 +501,7 @@ nft_arp_print_rule(struct nft_handle *h, struct nftnl_rule *r,
+ 	if (!(format & FMT_NONEWLINE))
+ 		fputc('\n', stdout);
+ 
+-	nft_clear_iptables_command_state(&cs);
++	xtables_clear_iptables_command_state(&cs);
+ }
+ 
+ static bool nft_arp_is_same(const void *data_a,
+@@ -550,6 +550,6 @@ struct nft_family_ops nft_family_ops_arp = {
+ 	.save_chain		= nft_arp_save_chain,
+ 	.post_parse		= NULL,
+ 	.rule_to_cs		= nft_rule_to_iptables_command_state,
+-	.clear_cs		= nft_clear_iptables_command_state,
++	.clear_cs		= xtables_clear_iptables_command_state,
+ 	.parse_target		= nft_ipv46_parse_target,
+ };
+diff --git a/iptables/nft-ipv4.c b/iptables/nft-ipv4.c
+index 76c76b67100ca..a70e9ece248fe 100644
+--- a/iptables/nft-ipv4.c
++++ b/iptables/nft-ipv4.c
+@@ -286,7 +286,7 @@ static void nft_ipv4_print_rule(struct nft_handle *h, struct nftnl_rule *r,
+ 	if (!(format & FMT_NONEWLINE))
+ 		fputc('\n', stdout);
+ 
+-	nft_clear_iptables_command_state(&cs);
++	xtables_clear_iptables_command_state(&cs);
+ }
+ 
+ static void save_ipv4_addr(char letter, const struct in_addr *addr,
+@@ -476,6 +476,6 @@ struct nft_family_ops nft_family_ops_ipv4 = {
+ 	.post_parse		= nft_ipv4_post_parse,
+ 	.parse_target		= nft_ipv46_parse_target,
+ 	.rule_to_cs		= nft_rule_to_iptables_command_state,
+-	.clear_cs		= nft_clear_iptables_command_state,
++	.clear_cs		= xtables_clear_iptables_command_state,
+ 	.xlate			= nft_ipv4_xlate,
+ };
+diff --git a/iptables/nft-ipv6.c b/iptables/nft-ipv6.c
+index fac0f16cfe815..1f73bbcb8771f 100644
+--- a/iptables/nft-ipv6.c
++++ b/iptables/nft-ipv6.c
+@@ -215,7 +215,7 @@ static void nft_ipv6_print_rule(struct nft_handle *h, struct nftnl_rule *r,
+ 	if (!(format & FMT_NONEWLINE))
+ 		fputc('\n', stdout);
+ 
+-	nft_clear_iptables_command_state(&cs);
++	xtables_clear_iptables_command_state(&cs);
+ }
+ 
+ static void save_ipv6_addr(char letter, const struct in6_addr *addr,
+@@ -418,6 +418,6 @@ struct nft_family_ops nft_family_ops_ipv6 = {
+ 	.post_parse		= nft_ipv6_post_parse,
+ 	.parse_target		= nft_ipv46_parse_target,
+ 	.rule_to_cs		= nft_rule_to_iptables_command_state,
+-	.clear_cs		= nft_clear_iptables_command_state,
++	.clear_cs		= xtables_clear_iptables_command_state,
+ 	.xlate			= nft_ipv6_xlate,
+ };
+diff --git a/iptables/nft-shared.c b/iptables/nft-shared.c
+index cb1c2d61f52c1..075ad620250dc 100644
+--- a/iptables/nft-shared.c
++++ b/iptables/nft-shared.c
+@@ -685,20 +685,6 @@ void nft_rule_to_iptables_command_state(struct nft_handle *h,
+ 		cs->jumpto = "";
+ }
+ 
+-void nft_clear_iptables_command_state(struct iptables_command_state *cs)
+-{
+-	xtables_rule_matches_free(&cs->matches);
+-	if (cs->target) {
+-		free(cs->target->t);
+-		cs->target->t = NULL;
+-
+-		if (cs->target == cs->target->next) {
+-			free(cs->target);
+-			cs->target = NULL;
+-		}
+-	}
+-}
+-
+ void print_header(unsigned int format, const char *chain, const char *pol,
+ 		  const struct xt_counters *counters, bool basechain,
+ 		  uint32_t refs, uint32_t entries)
+diff --git a/iptables/nft-shared.h b/iptables/nft-shared.h
+index 3531631bd8acd..e3c1b202b8638 100644
+--- a/iptables/nft-shared.h
++++ b/iptables/nft-shared.h
+@@ -144,7 +144,6 @@ void get_cmp_data(struct nftnl_expr *e, void *data, size_t dlen, bool *inv);
+ void nft_rule_to_iptables_command_state(struct nft_handle *h,
+ 					const struct nftnl_rule *r,
+ 					struct iptables_command_state *cs);
+-void nft_clear_iptables_command_state(struct iptables_command_state *cs);
+ void print_header(unsigned int format, const char *chain, const char *pol,
+ 		  const struct xt_counters *counters, bool basechain,
+ 		  uint32_t refs, uint32_t entries);
+diff --git a/iptables/xshared.c b/iptables/xshared.c
+index b052b849b2069..8de4fe4945279 100644
+--- a/iptables/xshared.c
++++ b/iptables/xshared.c
+@@ -872,3 +872,20 @@ void assert_valid_chain_name(const char *chainname)
+ 			xtables_error(PARAMETER_PROBLEM,
+ 				      "Invalid chain name `%s'", chainname);
+ }
++
++void xtables_clear_iptables_command_state(struct iptables_command_state *cs)
++{
++	xtables_rule_matches_free(&cs->matches);
++	if (cs->target) {
++		free(cs->target->t);
++		cs->target->t = NULL;
++
++		free(cs->target->udata);
++		cs->target->udata = NULL;
++
++		if (cs->target == cs->target->next) {
++			free(cs->target);
++			cs->target = NULL;
++		}
++	}
++}
+diff --git a/iptables/xshared.h b/iptables/xshared.h
+index c512f20afd33a..e8fd82894f48e 100644
+--- a/iptables/xshared.h
++++ b/iptables/xshared.h
+@@ -139,6 +139,8 @@ struct iptables_command_state {
+ 	bool restore;
+ };
+ 
++void xtables_clear_iptables_command_state(struct iptables_command_state *cs);
++
+ typedef int (*mainfunc_t)(int, char **);
+ 
+ struct subcommand {
+diff --git a/iptables/xtables-arp.c b/iptables/xtables-arp.c
+index 0695504892b74..617b4ae41857f 100644
+--- a/iptables/xtables-arp.c
++++ b/iptables/xtables-arp.c
+@@ -1007,7 +1007,7 @@ int do_commandarp(struct nft_handle *h, int argc, char *argv[], char **table,
+ 	free(daddrs);
+ 	free(dmasks);
+ 
+-	nft_clear_iptables_command_state(&cs);
++	xtables_clear_iptables_command_state(&cs);
+ 	xtables_free_opts(1);
+ 
+ /*	if (verbose > 1)
+diff --git a/iptables/xtables-translate.c b/iptables/xtables-translate.c
+index 575fb320dc408..aeae33c38512a 100644
+--- a/iptables/xtables-translate.c
++++ b/iptables/xtables-translate.c
+@@ -319,7 +319,7 @@ static int do_command_xlate(struct nft_handle *h, int argc, char *argv[],
+ 		exit(1);
+ 	}
+ 
+-	nft_clear_iptables_command_state(&cs);
++	h->ops->clear_cs(&cs);
+ 
+ 	if (h->family == AF_INET) {
+ 		free(args.s.addr.v4);
+diff --git a/iptables/xtables.c b/iptables/xtables.c
+index 3c7b3fc45b6f6..250dacffdf49d 100644
+--- a/iptables/xtables.c
++++ b/iptables/xtables.c
+@@ -1051,7 +1051,7 @@ int do_commandx(struct nft_handle *h, int argc, char *argv[], char **table,
+ 
+ 	*table = p.table;
+ 
+-	nft_clear_iptables_command_state(&cs);
++	h->ops->clear_cs(&cs);
+ 
+ 	if (h->family == AF_INET) {
+ 		free(args.s.addr.v4);
+-- 
+2.40.0
+

@@ -1,0 +1,29 @@
+From 6069123a02f5ff736e8d06adc5d5f3f11173febf Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Thu, 17 Nov 2022 16:06:46 +0100
+Subject: [PATCH] extensions: TCPMSS: Use xlate callback for IPv6, too
+
+Data structures are identical and the translation is layer3-agnostic.
+
+Fixes: bebce197adb42 ("iptables: iptables-compat translation for TCPMSS")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit e05d9af176cb2a62c1bd24fa1d82b12a8ad00221)
+---
+ extensions/libxt_TCPMSS.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/extensions/libxt_TCPMSS.c b/extensions/libxt_TCPMSS.c
+index 0d9b200ebc72f..251a5532a838b 100644
+--- a/extensions/libxt_TCPMSS.c
++++ b/extensions/libxt_TCPMSS.c
+@@ -131,6 +131,7 @@ static struct xtables_target tcpmss_tg_reg[] = {
+ 		.x6_parse      = TCPMSS_parse,
+ 		.x6_fcheck     = TCPMSS_check,
+ 		.x6_options    = TCPMSS6_opts,
++		.xlate         = TCPMSS_xlate,
+ 	},
+ };
+ 
+-- 
+2.40.0
+

@@ -1,0 +1,36 @@
+From bf73dcb492c75cc03aeb945b749a49a529090ae3 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Thu, 29 Sep 2022 19:11:55 +0200
+Subject: [PATCH] extensions: among: Remove pointless fall through
+
+This seems to be a leftover from an earlier version of the switch().
+This fall through is never effective as the next case's code will never
+apply. So just break instead.
+
+Fixes: 26753888720d8 ("nft: bridge: Rudimental among extension support")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit eafe731a50058ed59305ee4ab1ea2d63d6c4e86e)
+---
+ extensions/libebt_among.c | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/extensions/libebt_among.c b/extensions/libebt_among.c
+index 7eb898f984bba..c607a775539d3 100644
+--- a/extensions/libebt_among.c
++++ b/extensions/libebt_among.c
+@@ -152,10 +152,9 @@ static int bramong_parse(int c, char **argv, int invert,
+ 			xtables_error(PARAMETER_PROBLEM,
+ 				      "File should only contain one line");
+ 		optarg[flen-1] = '\0';
+-		/* fall through */
++		break;
+ 	case AMONG_DST:
+-		if (c == AMONG_DST)
+-			dst = true;
++		dst = true;
+ 		/* fall through */
+ 	case AMONG_SRC:
+ 		break;
+-- 
+2.40.0
+

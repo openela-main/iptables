@@ -1,0 +1,34 @@
+From bee29f2820cafde1e04ebef049bc4c40c4dbbe18 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Wed, 2 Jun 2021 11:55:20 +0200
+Subject: [PATCH] nft: Avoid memleak in error path of nft_cmd_new()
+
+If rule allocation fails, free the allocated 'cmd' before returning to
+caller.
+
+Fixes: a7f1e208cdf9c ("nft: split parsing from netlink commands")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit eab75ed36a4f204ddab0c40ba42c5a300634d5c3)
+---
+ iptables/nft-cmd.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/iptables/nft-cmd.c b/iptables/nft-cmd.c
+index ed53c061edc6f..fd038503d87e1 100644
+--- a/iptables/nft-cmd.c
++++ b/iptables/nft-cmd.c
+@@ -35,8 +35,10 @@ struct nft_cmd *nft_cmd_new(struct nft_handle *h, int command,
+ 
+ 	if (state) {
+ 		rule = nft_rule_new(h, chain, table, state);
+-		if (!rule)
++		if (!rule) {
++			nft_cmd_free(cmd);
+ 			return NULL;
++		}
+ 
+ 		cmd->obj.rule = rule;
+ 
+-- 
+2.40.0
+

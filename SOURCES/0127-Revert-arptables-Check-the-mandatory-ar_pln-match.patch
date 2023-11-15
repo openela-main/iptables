@@ -1,0 +1,44 @@
+From ffbc5cf87e89345ad5c4aac0ae41d3cca7502db9 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Tue, 9 May 2023 16:33:12 +0200
+Subject: [PATCH] Revert "arptables: Check the mandatory ar_pln match"
+
+This reverts commit 8d33fdea9f7883f403a9d3ef5b5d13887b7a5303.
+
+Due to the missing parser error checking and reporting added by commit
+f315af1cf8871 ("nft: track each register individually"), the added check
+is ineffective.
+
+(cherry picked from commit eb7dd6487edb14c20b60efd485e45eb014fcf41a)
+---
+ iptables/nft-arp.c | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)
+
+diff --git a/iptables/nft-arp.c b/iptables/nft-arp.c
+index f1cf46476ec83..fa1676e7fd878 100644
+--- a/iptables/nft-arp.c
++++ b/iptables/nft-arp.c
+@@ -219,7 +219,7 @@ static void nft_arp_parse_payload(struct nft_xt_ctx *ctx,
+ 	struct arpt_entry *fw = &cs->arp;
+ 	struct in_addr addr;
+ 	uint16_t ar_hrd, ar_pro, ar_op;
+-	uint8_t ar_hln, ar_pln;
++	uint8_t ar_hln;
+ 	bool inv;
+ 
+ 	switch (ctx->payload.offset) {
+@@ -251,11 +251,6 @@ static void nft_arp_parse_payload(struct nft_xt_ctx *ctx,
+ 		if (inv)
+ 			fw->arp.invflags |= IPT_INV_ARPHLN;
+ 		break;
+-	case offsetof(struct arphdr, ar_pln):
+-		get_cmp_data(e, &ar_pln, sizeof(ar_pln), &inv);
+-		if (ar_pln != 4 || inv)
+-			ctx->errmsg = "unexpected ARP protocol length match";
+-		break;
+ 	default:
+ 		if (ctx->payload.offset == sizeof(struct arphdr)) {
+ 			if (nft_arp_parse_devaddr(ctx, e, &fw->arp.src_devaddr))
+-- 
+2.40.0
+

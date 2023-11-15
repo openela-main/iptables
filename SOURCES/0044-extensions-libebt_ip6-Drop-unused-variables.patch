@@ -1,0 +1,49 @@
+From 89bd91cfdf6f81971324dca1b0df7c6c5537a2ab Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Fri, 13 Nov 2020 21:13:50 +0100
+Subject: [PATCH] extensions: libebt_ip6: Drop unused variables
+
+They are being assigned to but never read.
+
+Fixes: 5c8ce9c6aede0 ("ebtables-compat: add 'ip6' match extension")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 8bb5bcae57c83066c224efa5fd29ed4822a766fc)
+---
+ extensions/libebt_ip6.c | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/extensions/libebt_ip6.c b/extensions/libebt_ip6.c
+index b8a5a5d8c3a92..301bed9aadefd 100644
+--- a/extensions/libebt_ip6.c
++++ b/extensions/libebt_ip6.c
+@@ -250,9 +250,8 @@ static void brip6_init(struct xt_entry_match *match)
+ static struct in6_addr *numeric_to_addr(const char *num)
+ {
+ 	static struct in6_addr ap;
+-	int err;
+ 
+-	if ((err=inet_pton(AF_INET6, num, &ap)) == 1)
++	if (inet_pton(AF_INET6, num, &ap) == 1)
+ 		return &ap;
+ 	return (struct in6_addr *)NULL;
+ }
+@@ -292,7 +291,6 @@ static void ebt_parse_ip6_address(char *address, struct in6_addr *addr, struct i
+ 	char buf[256];
+ 	char *p;
+ 	int i;
+-	int err;
+ 
+ 	strncpy(buf, address, sizeof(buf) - 1);
+ 	/* first the mask */
+@@ -309,7 +307,7 @@ static void ebt_parse_ip6_address(char *address, struct in6_addr *addr, struct i
+ 	if (!memcmp(msk, &in6addr_any, sizeof(in6addr_any)))
+ 		strcpy(buf, "::");
+ 
+-	if ((err=inet_pton(AF_INET6, buf, addr)) < 1) {
++	if (inet_pton(AF_INET6, buf, addr) < 1) {
+ 		xtables_error(PARAMETER_PROBLEM, "Invalid IPv6 Address '%s' specified", buf);
+ 		return;
+ 	}
+-- 
+2.40.0
+

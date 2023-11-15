@@ -1,0 +1,104 @@
+From 38ddff6cd616cf9d6869bcf8fa3c01e186446cb4 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Tue, 1 Mar 2022 23:05:29 +0100
+Subject: [PATCH] xshared: Prefer xtables_chain_protos lookup over getprotoent
+
+When dumping a large ruleset, common protocol matches such as for TCP
+port number significantly slow down rule printing due to repeated calls
+for getprotobynumber(). The latter does not involve any caching, so
+/etc/protocols is consulted over and over again.
+
+As a simple countermeasure, make functions converting between proto
+number and name prefer the built-in list of "well-known" protocols. This
+is not a perfect solution, repeated rules for protocol names libxtables
+does not cache (e.g. igmp or dccp) will still be slow. Implementing
+getprotoent() result caching could solve this.
+
+As a side-effect, explicit check for pseudo-protocol "all" may be
+dropped as it is contained in the built-in list and therefore immutable.
+
+Also update xtables_chain_protos entries a bit to align with typical
+/etc/protocols contents. The testsuite assumes those names, so the
+preferred ones prior to this patch are indeed uncommon nowadays.
+
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+Acked-by: Florian Westphal <fw@strlen.de>
+(cherry picked from commit b6196c7504d4d41827cea86c167926125cdbf1f3)
+---
+ iptables/xshared.c   |  8 ++++----
+ libxtables/xtables.c | 19 ++++++-------------
+ 2 files changed, 10 insertions(+), 17 deletions(-)
+
+diff --git a/iptables/xshared.c b/iptables/xshared.c
+index 26e938309eab3..f7581967efc28 100644
+--- a/iptables/xshared.c
++++ b/iptables/xshared.c
+@@ -52,16 +52,16 @@ proto_to_name(uint16_t proto, int nolookup)
+ {
+ 	unsigned int i;
+ 
++	for (i = 0; xtables_chain_protos[i].name != NULL; ++i)
++		if (xtables_chain_protos[i].num == proto)
++			return xtables_chain_protos[i].name;
++
+ 	if (proto && !nolookup) {
+ 		struct protoent *pent = getprotobynumber(proto);
+ 		if (pent)
+ 			return pent->p_name;
+ 	}
+ 
+-	for (i = 0; xtables_chain_protos[i].name != NULL; ++i)
+-		if (xtables_chain_protos[i].num == proto)
+-			return xtables_chain_protos[i].name;
+-
+ 	return NULL;
+ }
+ 
+diff --git a/libxtables/xtables.c b/libxtables/xtables.c
+index 6ded6cc720ea8..cb380ad61ccb5 100644
+--- a/libxtables/xtables.c
++++ b/libxtables/xtables.c
+@@ -2077,10 +2077,11 @@ const struct xtables_pprot xtables_chain_protos[] = {
+ 	{"udp",       IPPROTO_UDP},
+ 	{"udplite",   IPPROTO_UDPLITE},
+ 	{"icmp",      IPPROTO_ICMP},
+-	{"icmpv6",    IPPROTO_ICMPV6},
+ 	{"ipv6-icmp", IPPROTO_ICMPV6},
++	{"icmpv6",    IPPROTO_ICMPV6},
+ 	{"esp",       IPPROTO_ESP},
+ 	{"ah",        IPPROTO_AH},
++	{"mobility-header", IPPROTO_MH},
+ 	{"ipv6-mh",   IPPROTO_MH},
+ 	{"mh",        IPPROTO_MH},
+ 	{"all",       0},
+@@ -2096,23 +2097,15 @@ xtables_parse_protocol(const char *s)
+ 	if (xtables_strtoui(s, NULL, &proto, 0, UINT8_MAX))
+ 		return proto;
+ 
+-	/* first deal with the special case of 'all' to prevent
+-	 * people from being able to redefine 'all' in nsswitch
+-	 * and/or provoke expensive [not working] ldap/nis/...
+-	 * lookups */
+-	if (strcmp(s, "all") == 0)
+-		return 0;
++	for (i = 0; xtables_chain_protos[i].name != NULL; ++i) {
++		if (strcmp(s, xtables_chain_protos[i].name) == 0)
++			return xtables_chain_protos[i].num;
++	}
+ 
+ 	pent = getprotobyname(s);
+ 	if (pent != NULL)
+ 		return pent->p_proto;
+ 
+-	for (i = 0; i < ARRAY_SIZE(xtables_chain_protos); ++i) {
+-		if (xtables_chain_protos[i].name == NULL)
+-			continue;
+-		if (strcmp(s, xtables_chain_protos[i].name) == 0)
+-			return xtables_chain_protos[i].num;
+-	}
+ 	xt_params->exit_err(PARAMETER_PROBLEM,
+ 		"unknown protocol \"%s\" specified", s);
+ 	return -1;
+-- 
+2.40.0
+

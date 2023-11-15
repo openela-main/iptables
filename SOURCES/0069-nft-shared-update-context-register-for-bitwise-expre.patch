@@ -1,0 +1,31 @@
+From ef0405f9267dc23f51bb2b84e63e31ba484f3196 Mon Sep 17 00:00:00 2001
+From: Pablo Neira Ayuso <pablo@netfilter.org>
+Date: Thu, 21 Apr 2022 16:53:33 +0200
+Subject: [PATCH] nft-shared: update context register for bitwise expression
+
+Update the destination register, otherwise nft_parse_cmp() gives up on
+interpreting the cmp expression when bitwise sreg != dreg.
+
+Fixes: 2c4a34c30cb4 ("iptables-compat: fix address prefix")
+Signed-off-by: Pablo Neira Ayuso <pablo@netfilter.org>
+(cherry picked from commit 4c70c42fe8d937a2ca2709daa9efe96275d194da)
+---
+ iptables/nft-shared.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/iptables/nft-shared.c b/iptables/nft-shared.c
+index 6c643a8c06aaa..2b934ffc17756 100644
+--- a/iptables/nft-shared.c
++++ b/iptables/nft-shared.c
+@@ -459,6 +459,8 @@ static void nft_parse_bitwise(struct nft_xt_ctx *ctx, struct nftnl_expr *e)
+ 	if (ctx->reg && reg != ctx->reg)
+ 		return;
+ 
++	reg = nftnl_expr_get_u32(e, NFTNL_EXPR_BITWISE_DREG);
++	ctx->reg = reg;
+ 	data = nftnl_expr_get(e, NFTNL_EXPR_BITWISE_XOR, &len);
+ 	memcpy(ctx->bitwise.xor, data, len);
+ 	data = nftnl_expr_get(e, NFTNL_EXPR_BITWISE_MASK, &len);
+-- 
+2.40.0
+

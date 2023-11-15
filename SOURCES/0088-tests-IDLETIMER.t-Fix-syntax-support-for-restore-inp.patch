@@ -1,0 +1,29 @@
+From f180adb86f7004c959cea29eee855a1bc489dcc9 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Fri, 30 Sep 2022 18:06:10 +0200
+Subject: [PATCH] tests: IDLETIMER.t: Fix syntax, support for restore input
+
+Expected output was wrong in the last OK test, probably defeating rule
+search check. Also use a different label, otherwise the kernel will
+reject the second idletimer with same label but different type if both
+rules are added at once.
+
+Fixes: 85b9ec8615428 ("extensions: IDLETIMER: Add alarm timer option")
+(cherry picked from commit de043bbf2b78cad83a639e27c75263aa478e8cc4)
+---
+ extensions/libxt_IDLETIMER.t | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/extensions/libxt_IDLETIMER.t b/extensions/libxt_IDLETIMER.t
+index e8f306d2462c7..3345d5bef9e38 100644
+--- a/extensions/libxt_IDLETIMER.t
++++ b/extensions/libxt_IDLETIMER.t
+@@ -2,4 +2,4 @@
+ -j IDLETIMER --timeout;;FAIL
+ -j IDLETIMER --timeout 42;;FAIL
+ -j IDLETIMER --timeout 42 --label foo;=;OK
+--j IDLETIMER --timeout 42 --label foo --alarm;;OK
++-j IDLETIMER --timeout 42 --label bar --alarm;=;OK
+-- 
+2.40.0
+

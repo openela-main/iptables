@@ -1,0 +1,82 @@
+From c5533b1a742253bf5c5ad3ae766ef3348f65f923 Mon Sep 17 00:00:00 2001
+From: Pablo Neira Ayuso <pablo@netfilter.org>
+Date: Fri, 2 Oct 2020 13:44:36 +0200
+Subject: [PATCH 145/145] iptables-nft: fix basechain policy configuration
+
+Previous to this patch, the basechain policy could not be properly
+configured if it wasn't explictly set when loading the ruleset, leading
+to iptables-nft-restore (and ip6tables-nft-restore) trying to send an
+invalid ruleset to the kernel.
+
+Signed-off-by: Arturo Borrero Gonzalez <arturo@netfilter.org>
+Signed-off-by: Pablo Neira Ayuso <pablo@netfilter.org>
+(cherry picked from commit 0bd7a8eaf3582159490ab355b1217a4e42ed021f)
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ iptables/nft.c                                |  6 +++-
+ .../nft-only/0008-basechain-policy_0          | 29 +++++++++++++++++++
+ 2 files changed, 34 insertions(+), 1 deletion(-)
+ create mode 100755 iptables/tests/shell/testcases/nft-only/0008-basechain-policy_0
+
+diff --git a/iptables/nft.c b/iptables/nft.c
+index c3b819f1934a8..6096647bc472d 100644
+--- a/iptables/nft.c
++++ b/iptables/nft.c
+@@ -685,7 +685,9 @@ nft_chain_builtin_alloc(const struct builtin_table *table,
+ 	nftnl_chain_set_str(c, NFTNL_CHAIN_NAME, chain->name);
+ 	nftnl_chain_set_u32(c, NFTNL_CHAIN_HOOKNUM, chain->hook);
+ 	nftnl_chain_set_u32(c, NFTNL_CHAIN_PRIO, chain->prio);
+-	nftnl_chain_set_u32(c, NFTNL_CHAIN_POLICY, policy);
++	if (policy >= 0)
++		nftnl_chain_set_u32(c, NFTNL_CHAIN_POLICY, policy);
++
+ 	nftnl_chain_set_str(c, NFTNL_CHAIN_TYPE, chain->type);
+ 
+ 	return c;
+@@ -927,6 +929,8 @@ int nft_chain_set(struct nft_handle *h, const char *table,
+ 		c = nft_chain_new(h, table, chain, NF_DROP, counters);
+ 	else if (strcmp(policy, "ACCEPT") == 0)
+ 		c = nft_chain_new(h, table, chain, NF_ACCEPT, counters);
++	else if (strcmp(policy, "-") == 0)
++		c = nft_chain_new(h, table, chain, -1, counters);
+ 	else
+ 		errno = EINVAL;
+ 
+diff --git a/iptables/tests/shell/testcases/nft-only/0008-basechain-policy_0 b/iptables/tests/shell/testcases/nft-only/0008-basechain-policy_0
+new file mode 100755
+index 0000000000000..a81e9badc43a5
+--- /dev/null
++++ b/iptables/tests/shell/testcases/nft-only/0008-basechain-policy_0
+@@ -0,0 +1,29 @@
++#!/bin/bash
++
++[[ $XT_MULTI == *xtables-nft-multi ]] || { echo "skip $XT_MULTI"; exit 0; }
++set -e
++
++$XT_MULTI iptables -t raw -P OUTPUT DROP
++
++# make sure iptables-nft-restore can correctly handle basechain policies when
++# they aren't set with --noflush
++#
++$XT_MULTI iptables-restore --noflush <<EOF
++*raw
++:OUTPUT - [0:0]
++:PREROUTING - [0:0]
++:neutron-linuxbri-OUTPUT - [0:0]
++:neutron-linuxbri-PREROUTING - [0:0]
++-I OUTPUT 1 -j neutron-linuxbri-OUTPUT
++-I PREROUTING 1 -j neutron-linuxbri-PREROUTING
++-I neutron-linuxbri-PREROUTING 1 -m physdev --physdev-in brq7425e328-56 -j CT --zone 4097
++-I neutron-linuxbri-PREROUTING 2 -i brq7425e328-56 -j CT --zone 4097
++-I neutron-linuxbri-PREROUTING 3 -m physdev --physdev-in tap7f101a28-1d -j CT --zone 4097
++
++COMMIT
++EOF
++
++$XT_MULTI iptables-save | grep -C2 raw | grep OUTPUT | grep DROP
++if [ $? -ne 0 ]; then
++	exit 1
++fi
+-- 
+2.41.0
+

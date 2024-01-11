@@ -1,0 +1,42 @@
+From 2dff9a669400644ec1e66d394b03d743eec2cd55 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Mon, 5 Oct 2020 15:54:35 +0200
+Subject: [PATCH] nft: Fix error reporting for refreshed transactions
+
+When preparing a batch from the list of batch objects in nft_action(),
+the sequence number used for each object is stored within that object
+for later matching against returned error messages. Though if the
+transaction has to be refreshed, some of those objects may be skipped,
+other objects take over their sequence number and errors are matched to
+skipped objects. Avoid this by resetting the skipped object's sequence
+number to zero.
+
+Fixes: 58d7de0181f61 ("xtables: handle concurrent ruleset modifications")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+Reviewed-by: Florian Westphal <fw@strlen.de>
+(cherry picked from commit e98b825a037807bf6c918eb66ee9682cc4c46183)
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ iptables/nft.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/iptables/nft.c b/iptables/nft.c
+index 0efd18d57320f..d661ac2cafda6 100644
+--- a/iptables/nft.c
++++ b/iptables/nft.c
+@@ -2767,9 +2767,10 @@ retry:
+ 	h->nft_genid++;
+ 
+ 	list_for_each_entry(n, &h->obj_list, head) {
+-
+-		if (n->skip)
++		if (n->skip) {
++			n->seq = 0;
+ 			continue;
++		}
+ 
+ 		n->seq = seq++;
+ 		switch (n->type) {
+-- 
+2.28.0
+

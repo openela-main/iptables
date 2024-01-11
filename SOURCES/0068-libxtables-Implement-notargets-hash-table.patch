@@ -1,0 +1,142 @@
+From 3e8e2f0a6590a3b1eeb989e364fe4b5638be108f Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Tue, 15 Dec 2020 15:40:56 +0100
+Subject: [PATCH] libxtables: Implement notargets hash table
+
+Target lookup is relatively costly due to the filesystem access. Avoid
+this overhead in huge rulesets which contain many chain jumps by caching
+the failed lookups into a hashtable for later.
+
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+Acked-by: Florian Westphal <fw@strlen.de>
+(cherry picked from commit f58b0d7406451afbb4b9b6c7888990c964fa7c79)
+
+Conflicts:
+	libxtables/xtables.c
+-> Context changes and missing xtables_fini() due to missing commit
+   7db4333dc0b6c ("libxtables: Introduce xtables_fini()")
+---
+ libxtables/xtables.c | 79 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 79 insertions(+)
+
+diff --git a/libxtables/xtables.c b/libxtables/xtables.c
+index 58dd69440253d..1e1c218df7441 100644
+--- a/libxtables/xtables.c
++++ b/libxtables/xtables.c
+@@ -48,6 +48,7 @@
+ #include <linux/netfilter_ipv4/ip_tables.h>
+ #include <linux/netfilter_ipv6/ip6_tables.h>
+ #include <libiptc/libxtc.h>
++#include <libiptc/linux_list.h>
+ 
+ #ifndef NO_SHARED_LIBS
+ #include <dlfcn.h>
+@@ -208,6 +209,71 @@ static bool xtables_fully_register_pending_match(struct xtables_match *me,
+ static bool xtables_fully_register_pending_target(struct xtables_target *me,
+ 						  struct xtables_target *prev);
+ 
++struct notarget {
++	struct hlist_node node;
++	char name[];
++};
++
++#define NOTARGET_HSIZE	512
++static struct hlist_head notargets[NOTARGET_HSIZE];
++
++static void notargets_hlist_init(void)
++{
++	int i;
++
++	for (i = 0; i < NOTARGET_HSIZE; i++)
++		INIT_HLIST_HEAD(&notargets[i]);
++}
++
++static void notargets_hlist_free(void)
++{
++	struct hlist_node *pos, *n;
++	struct notarget *cur;
++	int i;
++
++	for (i = 0; i < NOTARGET_HSIZE; i++) {
++		hlist_for_each_entry_safe(cur, pos, n, &notargets[i], node) {
++			hlist_del(&cur->node);
++			free(cur);
++		}
++	}
++}
++
++static uint32_t djb_hash(const char *key)
++{
++	uint32_t i, hash = 5381;
++
++	for (i = 0; i < strlen(key); i++)
++		hash = ((hash << 5) + hash) + key[i];
++
++	return hash;
++}
++
++static struct notarget *notargets_hlist_lookup(const char *name)
++{
++	uint32_t key = djb_hash(name) % NOTARGET_HSIZE;
++	struct hlist_node *node;
++	struct notarget *cur;
++
++	hlist_for_each_entry(cur, node, &notargets[key], node) {
++		if (!strcmp(name, cur->name))
++			return cur;
++	}
++	return NULL;
++}
++
++static void notargets_hlist_insert(const char *name)
++{
++	struct notarget *cur;
++
++	if (!name)
++		return;
++
++	cur = xtables_malloc(sizeof(*cur) + strlen(name) + 1);
++	strcpy(cur->name, name);
++	hlist_add_head(&cur->node, &notargets[djb_hash(name) % NOTARGET_HSIZE]);
++}
++
+ void xtables_init(void)
+ {
+ 	xtables_libdir = getenv("XTABLES_LIBDIR");
+@@ -233,6 +299,13 @@ void xtables_init(void)
+ 		return;
+ 	}
+ 	xtables_libdir = XTABLES_LIBDIR;
++
++	notargets_hlist_init();
++}
++
++void xtables_fini(void)
++{
++	notargets_hlist_free();
+ }
+ 
+ void xtables_set_nfproto(uint8_t nfproto)
+@@ -750,6 +823,10 @@ xtables_find_target(const char *name, enum xtables_tryload tryload)
+ 	    || strcmp(name, XTC_LABEL_QUEUE) == 0
+ 	    || strcmp(name, XTC_LABEL_RETURN) == 0)
+ 		name = "standard";
++	/* known non-target? */
++	else if (notargets_hlist_lookup(name) &&
++		 tryload != XTF_LOAD_MUST_SUCCEED)
++		return NULL;
+ 
+ 	/* Trigger delayed initialization */
+ 	for (dptr = &xtables_pending_targets; *dptr; ) {
+@@ -813,6 +890,8 @@ xtables_find_target(const char *name, enum xtables_tryload tryload)
+ 
+ 	if (ptr)
+ 		ptr->used = 1;
++	else
++		notargets_hlist_insert(name);
+ 
+ 	return ptr;
+ }
+-- 
+2.34.1
+

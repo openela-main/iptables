@@ -1,0 +1,102 @@
+From 07f51d26e405b4a328813f35bc27015eb9324330 Mon Sep 17 00:00:00 2001
+From: Florian Westphal <fw@strlen.de>
+Date: Sat, 12 Dec 2020 16:15:34 +0100
+Subject: [PATCH] xtables-monitor: print packet first
+
+The trace mode should first print the packet that was received and
+then the rule/verdict.
+
+Furthermore, the monitor did sometimes print an extra newline.
+
+After this patch, output is more consistent with nft monitor.
+
+Signed-off-by: Florian Westphal <fw@strlen.de>
+(cherry picked from commit 180ba723d0b305fab9287d3bc5f845a43d9eb793)
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ iptables/xtables-monitor.c | 34 +++++++++++++++++++++++-----------
+ 1 file changed, 23 insertions(+), 11 deletions(-)
+
+diff --git a/iptables/xtables-monitor.c b/iptables/xtables-monitor.c
+index 9fa1ca166a61e..23e828988bb8b 100644
+--- a/iptables/xtables-monitor.c
++++ b/iptables/xtables-monitor.c
+@@ -106,6 +106,7 @@ static int rule_cb(const struct nlmsghdr *nlh, void *data)
+ 		printf("-0 ");
+ 		break;
+ 	default:
++		puts("");
+ 		goto err_free;
+ 	}
+ 
+@@ -433,9 +434,18 @@ static void trace_print_packet(const struct nftnl_trace *nlt, struct cb_arg *arg
+ 	mark = nftnl_trace_get_u32(nlt, NFTNL_TRACE_MARK);
+ 	if (mark)
+ 		printf("MARK=0x%x ", mark);
++	puts("");
++}
++
++static void trace_print_hdr(const struct nftnl_trace *nlt)
++{
++	printf(" TRACE: %d %08x %s:%s", nftnl_trace_get_u32(nlt, NFTNL_TABLE_FAMILY),
++					nftnl_trace_get_u32(nlt, NFTNL_TRACE_ID),
++					nftnl_trace_get_str(nlt, NFTNL_TRACE_TABLE),
++					nftnl_trace_get_str(nlt, NFTNL_TRACE_CHAIN));
+ }
+ 
+-static void print_verdict(struct nftnl_trace *nlt, uint32_t verdict)
++static void print_verdict(const struct nftnl_trace *nlt, uint32_t verdict)
+ {
+ 	const char *chain;
+ 
+@@ -496,35 +506,37 @@ static int trace_cb(const struct nlmsghdr *nlh, struct cb_arg *arg)
+ 	    arg->nfproto != nftnl_trace_get_u32(nlt, NFTNL_TABLE_FAMILY))
+ 		goto err_free;
+ 
+-	printf(" TRACE: %d %08x %s:%s", nftnl_trace_get_u32(nlt, NFTNL_TABLE_FAMILY),
+-					nftnl_trace_get_u32(nlt, NFTNL_TRACE_ID),
+-					nftnl_trace_get_str(nlt, NFTNL_TRACE_TABLE),
+-					nftnl_trace_get_str(nlt, NFTNL_TRACE_CHAIN));
+-
+ 	switch (nftnl_trace_get_u32(nlt, NFTNL_TRACE_TYPE)) {
+ 	case NFT_TRACETYPE_RULE:
+ 		verdict = nftnl_trace_get_u32(nlt, NFTNL_TRACE_VERDICT);
+-		printf(":rule:0x%llx:", (unsigned long long)nftnl_trace_get_u64(nlt, NFTNL_TRACE_RULE_HANDLE));
+-		print_verdict(nlt, verdict);
+ 
+-		if (nftnl_trace_is_set(nlt, NFTNL_TRACE_RULE_HANDLE))
+-			trace_print_rule(nlt, arg);
+ 		if (nftnl_trace_is_set(nlt, NFTNL_TRACE_LL_HEADER) ||
+ 		    nftnl_trace_is_set(nlt, NFTNL_TRACE_NETWORK_HEADER))
+ 			trace_print_packet(nlt, arg);
++
++		if (nftnl_trace_is_set(nlt, NFTNL_TRACE_RULE_HANDLE)) {
++			trace_print_hdr(nlt);
++			printf(":rule:0x%" PRIx64":", nftnl_trace_get_u64(nlt, NFTNL_TRACE_RULE_HANDLE));
++			print_verdict(nlt, verdict);
++			printf(" ");
++			trace_print_rule(nlt, arg);
++		}
+ 		break;
+ 	case NFT_TRACETYPE_POLICY:
++		trace_print_hdr(nlt);
+ 		printf(":policy:");
+ 		verdict = nftnl_trace_get_u32(nlt, NFTNL_TRACE_POLICY);
+ 
+ 		print_verdict(nlt, verdict);
++		puts("");
+ 		break;
+ 	case NFT_TRACETYPE_RETURN:
++		trace_print_hdr(nlt);
+ 		printf(":return:");
+ 		trace_print_return(nlt);
++		puts("");
+ 		break;
+ 	}
+-	puts("");
+ err_free:
+ 	nftnl_trace_free(nlt);
+ err:
+-- 
+2.31.1
+

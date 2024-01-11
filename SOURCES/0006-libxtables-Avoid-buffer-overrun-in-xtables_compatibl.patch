@@ -1,0 +1,32 @@
+From d3641eaed9ad19b74f3bababb3db53af0004488b Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Thu, 5 Dec 2019 13:57:18 +0100
+Subject: [PATCH] libxtables: Avoid buffer overrun in
+ xtables_compatible_revision()
+
+The function is exported and accepts arbitrary strings as input. Calling
+strcpy() without length checks is not OK.
+
+(cherry picked from commit f7d3dbb82e7ed94ccbf10cf70a3c7b3f3aaef1a1)
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ libxtables/xtables.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/libxtables/xtables.c b/libxtables/xtables.c
+index 895f6988eaf57..777c2b08e9896 100644
+--- a/libxtables/xtables.c
++++ b/libxtables/xtables.c
+@@ -856,7 +856,8 @@ int xtables_compatible_revision(const char *name, uint8_t revision, int opt)
+ 
+ 	xtables_load_ko(xtables_modprobe_program, true);
+ 
+-	strcpy(rev.name, name);
++	strncpy(rev.name, name, XT_EXTENSION_MAXNAMELEN - 1);
++	rev.name[XT_EXTENSION_MAXNAMELEN - 1] = '\0';
+ 	rev.revision = revision;
+ 
+ 	max_rev = getsockopt(sockfd, afinfo->ipproto, opt, &rev, &s);
+-- 
+2.24.0
+

@@ -1,0 +1,156 @@
+From f8839b3651e0ffbb93b6ce4675809d60782a4396 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Tue, 17 Nov 2020 00:57:10 +0100
+Subject: [PATCH] Use proto_to_name() from xshared in more places
+
+Share the common proto name lookup code. While being at it, make proto
+number variable 16bit, values may exceed 256.
+
+This aligns iptables-nft '-p' argument printing with legacy iptables. In
+practice, this should make a difference only in corner cases.
+
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 556f704458cdb509d395ddb7d2629987d60e762e)
+---
+ include/xtables.h     |  2 +-
+ iptables/ip6tables.c  | 22 +++++-----------------
+ iptables/iptables.c   | 20 +++++---------------
+ iptables/nft-shared.c |  6 +++---
+ iptables/xshared.c    |  2 +-
+ iptables/xshared.h    |  2 +-
+ 6 files changed, 16 insertions(+), 38 deletions(-)
+
+diff --git a/include/xtables.h b/include/xtables.h
+index d77a73a4303a7..06982e720cbb8 100644
+--- a/include/xtables.h
++++ b/include/xtables.h
+@@ -395,7 +395,7 @@ struct xtables_rule_match {
+  */
+ struct xtables_pprot {
+ 	const char *name;
+-	uint8_t num;
++	uint16_t num;
+ };
+ 
+ enum xtables_tryload {
+diff --git a/iptables/ip6tables.c b/iptables/ip6tables.c
+index b96dc033e7ebb..4860682001360 100644
+--- a/iptables/ip6tables.c
++++ b/iptables/ip6tables.c
+@@ -849,28 +849,16 @@ print_iface(char letter, const char *iface, const unsigned char *mask,
+ 	}
+ }
+ 
+-/* The ip6tables looks up the /etc/protocols. */
+ static void print_proto(uint16_t proto, int invert)
+ {
+ 	if (proto) {
+-		unsigned int i;
++		const char *pname = proto_to_name(proto, 0);
+ 		const char *invertstr = invert ? " !" : "";
+ 
+-		const struct protoent *pent = getprotobynumber(proto);
+-		if (pent) {
+-			printf("%s -p %s",
+-			       invertstr, pent->p_name);
+-			return;
+-		}
+-
+-		for (i = 0; xtables_chain_protos[i].name != NULL; ++i)
+-			if (xtables_chain_protos[i].num == proto) {
+-				printf("%s -p %s",
+-				       invertstr, xtables_chain_protos[i].name);
+-				return;
+-			}
+-
+-		printf("%s -p %u", invertstr, proto);
++		if (pname)
++			printf("%s -p %s", invertstr, pname);
++		else
++			printf("%s -p %u", invertstr, proto);
+ 	}
+ }
+ 
+diff --git a/iptables/iptables.c b/iptables/iptables.c
+index 6e2946f5660de..620429b5d4817 100644
+--- a/iptables/iptables.c
++++ b/iptables/iptables.c
+@@ -819,23 +819,13 @@ list_entries(const xt_chainlabel chain, int rulenum, int verbose, int numeric,
+ static void print_proto(uint16_t proto, int invert)
+ {
+ 	if (proto) {
+-		unsigned int i;
++		const char *pname = proto_to_name(proto, 0);
+ 		const char *invertstr = invert ? " !" : "";
+ 
+-		const struct protoent *pent = getprotobynumber(proto);
+-		if (pent) {
+-			printf("%s -p %s", invertstr, pent->p_name);
+-			return;
+-		}
+-
+-		for (i = 0; xtables_chain_protos[i].name != NULL; ++i)
+-			if (xtables_chain_protos[i].num == proto) {
+-				printf("%s -p %s",
+-				       invertstr, xtables_chain_protos[i].name);
+-				return;
+-			}
+-
+-		printf("%s -p %u", invertstr, proto);
++		if (pname)
++			printf("%s -p %s", invertstr, pname);
++		else
++			printf("%s -p %u", invertstr, proto);
+ 	}
+ }
+ 
+diff --git a/iptables/nft-shared.c b/iptables/nft-shared.c
+index d73d0b6159be6..e3ba4ac34146f 100644
+--- a/iptables/nft-shared.c
++++ b/iptables/nft-shared.c
+@@ -821,13 +821,13 @@ void save_rule_details(const struct iptables_command_state *cs,
+ 	}
+ 
+ 	if (proto > 0) {
+-		const struct protoent *pent = getprotobynumber(proto);
++		const char *pname = proto_to_name(proto, 0);
+ 
+ 		if (invflags & XT_INV_PROTO)
+ 			printf("! ");
+ 
+-		if (pent)
+-			printf("-p %s ", pent->p_name);
++		if (pname)
++			printf("-p %s ", pname);
+ 		else
+ 			printf("-p %u ", proto);
+ 	}
+diff --git a/iptables/xshared.c b/iptables/xshared.c
+index 0c232ca2ae8d5..7a55ed5d15715 100644
+--- a/iptables/xshared.c
++++ b/iptables/xshared.c
+@@ -48,7 +48,7 @@ void print_extension_helps(const struct xtables_target *t,
+ }
+ 
+ const char *
+-proto_to_name(uint8_t proto, int nolookup)
++proto_to_name(uint16_t proto, int nolookup)
+ {
+ 	unsigned int i;
+ 
+diff --git a/iptables/xshared.h b/iptables/xshared.h
+index 095a574d85879..f3c7f28806619 100644
+--- a/iptables/xshared.h
++++ b/iptables/xshared.h
+@@ -146,7 +146,7 @@ enum {
+ 
+ extern void print_extension_helps(const struct xtables_target *,
+ 	const struct xtables_rule_match *);
+-extern const char *proto_to_name(uint8_t, int);
++extern const char *proto_to_name(uint16_t, int);
+ extern int command_default(struct iptables_command_state *,
+ 	struct xtables_globals *);
+ extern struct xtables_match *load_proto(struct iptables_command_state *);
+-- 
+2.34.1
+

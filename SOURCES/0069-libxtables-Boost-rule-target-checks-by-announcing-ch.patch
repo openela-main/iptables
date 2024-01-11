@@ -1,0 +1,86 @@
+From 86bf4207cb744c38807fb5c42c5921fc9964a2af Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Fri, 4 Mar 2022 12:50:01 +0100
+Subject: [PATCH] libxtables: Boost rule target checks by announcing chain
+ names
+
+When restoring a ruleset, feed libxtables with chain names from
+respective lines to avoid an extension search.
+
+While the user's intention is clear, this effectively disables the
+sanity check for clashes with target extensions. But:
+
+* The check yielded only a warning and the clashing chain was finally
+  accepted.
+
+* Users crafting iptables dumps for feeding into iptables-restore likely
+  know what they're doing.
+
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+Acked-by: Florian Westphal <fw@strlen.de>
+(cherry picked from commit ac4c84cc63d3cc021ca532692885a644fcde4518)
+---
+ include/xtables.h           | 3 +++
+ iptables/iptables-restore.c | 1 +
+ iptables/xtables-restore.c  | 1 +
+ libxtables/xtables.c        | 6 ++++++
+ 4 files changed, 11 insertions(+)
+
+diff --git a/include/xtables.h b/include/xtables.h
+index 4aa084a1a2a30..d77a73a4303a7 100644
+--- a/include/xtables.h
++++ b/include/xtables.h
+@@ -632,6 +632,9 @@ void xt_xlate_add_comment(struct xt_xlate *xl, const char *comment);
+ const char *xt_xlate_get_comment(struct xt_xlate *xl);
+ const char *xt_xlate_get(struct xt_xlate *xl);
+ 
++/* informed target lookups */
++void xtables_announce_chain(const char *name);
++
+ #ifdef XTABLES_INTERNAL
+ 
+ /* Shipped modules rely on this... */
+diff --git a/iptables/iptables-restore.c b/iptables/iptables-restore.c
+index b0a51d491c508..339abaa32a055 100644
+--- a/iptables/iptables-restore.c
++++ b/iptables/iptables-restore.c
+@@ -309,6 +309,7 @@ ip46tables_restore_main(const struct iptables_restore_cb *cb,
+ 						cb->ops->strerror(errno));
+ 			}
+ 
++			xtables_announce_chain(chain);
+ 			ret = 1;
+ 
+ 		} else if (in_table) {
+diff --git a/iptables/xtables-restore.c b/iptables/xtables-restore.c
+index a078da32045dc..41e7cb7661464 100644
+--- a/iptables/xtables-restore.c
++++ b/iptables/xtables-restore.c
+@@ -150,6 +150,7 @@ static void xtables_restore_parse_line(struct nft_handle *h,
+ 				   "%s: line %u chain name invalid\n",
+ 				   xt_params->program_name, line);
+ 
++		xtables_announce_chain(chain);
+ 		assert_valid_chain_name(chain);
+ 
+ 		policy = strtok(NULL, " \t\n");
+diff --git a/libxtables/xtables.c b/libxtables/xtables.c
+index 1e1c218df7441..4aee74acb6816 100644
+--- a/libxtables/xtables.c
++++ b/libxtables/xtables.c
+@@ -274,6 +274,12 @@ static void notargets_hlist_insert(const char *name)
+ 	hlist_add_head(&cur->node, &notargets[djb_hash(name) % NOTARGET_HSIZE]);
+ }
+ 
++void xtables_announce_chain(const char *name)
++{
++	if (!notargets_hlist_lookup(name))
++		notargets_hlist_insert(name);
++}
++
+ void xtables_init(void)
+ {
+ 	xtables_libdir = getenv("XTABLES_LIBDIR");
+-- 
+2.34.1
+

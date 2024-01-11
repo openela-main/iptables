@@ -1,0 +1,40 @@
+From 5fe54ca701a38e283faf840903e9ed20eba8a6f4 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Thu, 5 Dec 2019 16:01:29 +0100
+Subject: [PATCH] xtables-translate: Guard strcpy() call in xlate_ifname()
+
+The function potentially fed overlong strings to strcpy(). Given that
+everything needed to avoid this is there, reorder code a bit to prevent
+those inputs, too.
+
+Fixes: 0ddd663e9c167 ("iptables-translate: add in/out ifname wildcard match translation to nft")
+(cherry picked from commit 2861bdbbf062071487a49103513d129ce40e2652)
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ iptables/xtables-translate.c | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/iptables/xtables-translate.c b/iptables/xtables-translate.c
+index a42c60a3b64c6..77a186b905d73 100644
+--- a/iptables/xtables-translate.c
++++ b/iptables/xtables-translate.c
+@@ -32,14 +32,13 @@
+ void xlate_ifname(struct xt_xlate *xl, const char *nftmeta, const char *ifname,
+ 		  bool invert)
+ {
++	int ifaclen = strlen(ifname);
+ 	char iface[IFNAMSIZ];
+-	int ifaclen;
+ 
+-	if (ifname[0] == '\0')
++	if (ifaclen < 1 || ifaclen >= IFNAMSIZ)
+ 		return;
+ 
+ 	strcpy(iface, ifname);
+-	ifaclen = strlen(iface);
+ 	if (iface[ifaclen - 1] == '+')
+ 		iface[ifaclen - 1] = '*';
+ 
+-- 
+2.24.0
+

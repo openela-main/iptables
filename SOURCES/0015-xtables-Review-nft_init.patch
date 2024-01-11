@@ -1,0 +1,274 @@
+From 51f895d54af6e163e0290520e124e9413438ccf4 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Fri, 21 Feb 2020 14:55:52 +0100
+Subject: [PATCH] xtables: Review nft_init()
+
+Move common code into nft_init(), such as:
+
+* initial zeroing nft_handle fields
+* family ops lookup and assignment to 'ops' field
+* setting of 'family' field
+
+This requires minor adjustments in xtables_restore_main() so extra field
+initialization doesn't happen before nft_init() call.
+
+As a side-effect, this fixes segfaulting xtables-monitor binary when
+printing rules for trace event as in that code-path 'ops' field wasn't
+initialized.
+
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit d0446ab11182f6ca2adc486a124895f09a220c6e)
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ iptables/nft.c                |  9 ++++++++-
+ iptables/nft.h                |  2 +-
+ iptables/xtables-arp.c        |  9 +--------
+ iptables/xtables-eb.c         |  9 +--------
+ iptables/xtables-monitor.c    |  2 +-
+ iptables/xtables-restore.c    | 14 +++++++-------
+ iptables/xtables-save.c       |  9 ++-------
+ iptables/xtables-standalone.c |  6 ++----
+ iptables/xtables-translate.c  |  2 +-
+ iptables/xtables.c            |  4 ----
+ 10 files changed, 24 insertions(+), 42 deletions(-)
+
+diff --git a/iptables/nft.c b/iptables/nft.c
+index 3f2a62ae12c07..0287add3fb21f 100644
+--- a/iptables/nft.c
++++ b/iptables/nft.c
+@@ -789,8 +789,10 @@ int nft_restart(struct nft_handle *h)
+ 	return 0;
+ }
+ 
+-int nft_init(struct nft_handle *h, const struct builtin_table *t)
++int nft_init(struct nft_handle *h, int family, const struct builtin_table *t)
+ {
++	memset(h, 0, sizeof(*h));
++
+ 	h->nl = mnl_socket_open(NETLINK_NETFILTER);
+ 	if (h->nl == NULL)
+ 		return -1;
+@@ -800,9 +802,14 @@ int nft_init(struct nft_handle *h, const struct builtin_table *t)
+ 		return -1;
+ 	}
+ 
++	h->ops = nft_family_ops_lookup(family);
++	if (!h->ops)
++		xtables_error(PARAMETER_PROBLEM, "Unknown family");
++
+ 	h->portid = mnl_socket_get_portid(h->nl);
+ 	h->tables = t;
+ 	h->cache = &h->__cache[0];
++	h->family = family;
+ 
+ 	INIT_LIST_HEAD(&h->obj_list);
+ 	INIT_LIST_HEAD(&h->err_list);
+diff --git a/iptables/nft.h b/iptables/nft.h
+index 51b5660314c0c..5cf260a6d2cd3 100644
+--- a/iptables/nft.h
++++ b/iptables/nft.h
+@@ -80,7 +80,7 @@ extern const struct builtin_table xtables_bridge[NFT_TABLE_MAX];
+ int mnl_talk(struct nft_handle *h, struct nlmsghdr *nlh,
+ 	     int (*cb)(const struct nlmsghdr *nlh, void *data),
+ 	     void *data);
+-int nft_init(struct nft_handle *h, const struct builtin_table *t);
++int nft_init(struct nft_handle *h, int family, const struct builtin_table *t);
+ void nft_fini(struct nft_handle *h);
+ int nft_restart(struct nft_handle *h);
+ 
+diff --git a/iptables/xtables-arp.c b/iptables/xtables-arp.c
+index 9cfad76263d32..c8196f08baa59 100644
+--- a/iptables/xtables-arp.c
++++ b/iptables/xtables-arp.c
+@@ -500,17 +500,10 @@ int nft_init_arp(struct nft_handle *h, const char *pname)
+ 	init_extensionsa();
+ #endif
+ 
+-	memset(h, 0, sizeof(*h));
+-	h->family = NFPROTO_ARP;
+-
+-	if (nft_init(h, xtables_arp) < 0)
++	if (nft_init(h, NFPROTO_ARP, xtables_arp) < 0)
+ 		xtables_error(OTHER_PROBLEM,
+ 			      "Could not initialize nftables layer.");
+ 
+-	h->ops = nft_family_ops_lookup(h->family);
+-	if (h->ops == NULL)
+-		xtables_error(PARAMETER_PROBLEM, "Unknown family");
+-
+ 	return 0;
+ }
+ 
+diff --git a/iptables/xtables-eb.c b/iptables/xtables-eb.c
+index 15b971da3d425..c006bc95ac681 100644
+--- a/iptables/xtables-eb.c
++++ b/iptables/xtables-eb.c
+@@ -739,16 +739,9 @@ int nft_init_eb(struct nft_handle *h, const char *pname)
+ 	init_extensionsb();
+ #endif
+ 
+-	memset(h, 0, sizeof(*h));
+-
+-	h->family = NFPROTO_BRIDGE;
+-
+-	if (nft_init(h, xtables_bridge) < 0)
++	if (nft_init(h, NFPROTO_BRIDGE, xtables_bridge) < 0)
+ 		xtables_error(OTHER_PROBLEM,
+ 			      "Could not initialize nftables layer.");
+-	h->ops = nft_family_ops_lookup(h->family);
+-	if (!h->ops)
+-		xtables_error(PARAMETER_PROBLEM, "Unknown family");
+ 
+ 	/* manually registering ebt matches, given the original ebtables parser
+ 	 * don't use '-m matchname' and the match can't be loaded dynamically when
+diff --git a/iptables/xtables-monitor.c b/iptables/xtables-monitor.c
+index a5245d1422af9..c2b31dbaa0795 100644
+--- a/iptables/xtables-monitor.c
++++ b/iptables/xtables-monitor.c
+@@ -615,7 +615,7 @@ int xtables_monitor_main(int argc, char *argv[])
+ 	init_extensions4();
+ #endif
+ 
+-	if (nft_init(&h, xtables_ipv4)) {
++	if (nft_init(&h, AF_INET, xtables_ipv4)) {
+ 		fprintf(stderr, "%s/%s Failed to initialize nft: %s\n",
+ 			xtables_globals.program_name,
+ 			xtables_globals.program_version,
+diff --git a/iptables/xtables-restore.c b/iptables/xtables-restore.c
+index fb2ac8b5c12a3..11834c0ea98c5 100644
+--- a/iptables/xtables-restore.c
++++ b/iptables/xtables-restore.c
+@@ -360,15 +360,13 @@ static int
+ xtables_restore_main(int family, const char *progname, int argc, char *argv[])
+ {
+ 	const struct builtin_table *tables;
+-	struct nft_handle h = {
+-		.family = family,
+-		.restore = true,
+-	};
+-	int c;
+ 	struct nft_xt_restore_parse p = {
+ 		.commit = true,
+ 		.cb = &restore_cb,
+ 	};
++	bool noflush = false;
++	struct nft_handle h;
++	int c;
+ 
+ 	line = 0;
+ 
+@@ -402,7 +400,7 @@ xtables_restore_main(int family, const char *progname, int argc, char *argv[])
+ 				print_usage(prog_name, PACKAGE_VERSION);
+ 				exit(0);
+ 			case 'n':
+-				h.noflush = 1;
++				noflush = true;
+ 				break;
+ 			case 'M':
+ 				xtables_modprobe_program = optarg;
+@@ -464,13 +462,15 @@ xtables_restore_main(int family, const char *progname, int argc, char *argv[])
+ 		return 1;
+ 	}
+ 
+-	if (nft_init(&h, tables) < 0) {
++	if (nft_init(&h, family, tables) < 0) {
+ 		fprintf(stderr, "%s/%s Failed to initialize nft: %s\n",
+ 				xtables_globals.program_name,
+ 				xtables_globals.program_version,
+ 				strerror(errno));
+ 		exit(EXIT_FAILURE);
+ 	}
++	h.noflush = noflush;
++	h.restore = true;
+ 
+ 	xtables_restore_parse(&h, &p);
+ 
+diff --git a/iptables/xtables-save.c b/iptables/xtables-save.c
+index 3a52f8c3d8209..228282deaed07 100644
+--- a/iptables/xtables-save.c
++++ b/iptables/xtables-save.c
+@@ -139,10 +139,8 @@ xtables_save_main(int family, int argc, char *argv[],
+ 	struct do_output_data d = {
+ 		.format = FMT_NOCOUNTS,
+ 	};
++	struct nft_handle h;
+ 	bool dump = false;
+-	struct nft_handle h = {
+-		.family	= family,
+-	};
+ 	FILE *file = NULL;
+ 	int ret, c;
+ 
+@@ -242,16 +240,13 @@ xtables_save_main(int family, int argc, char *argv[],
+ 		return 1;
+ 	}
+ 
+-	if (nft_init(&h, tables) < 0) {
++	if (nft_init(&h, family, tables) < 0) {
+ 		fprintf(stderr, "%s/%s Failed to initialize nft: %s\n",
+ 				xtables_globals.program_name,
+ 				xtables_globals.program_version,
+ 				strerror(errno));
+ 		exit(EXIT_FAILURE);
+ 	}
+-	h.ops = nft_family_ops_lookup(h.family);
+-	if (!h.ops)
+-		xtables_error(PARAMETER_PROBLEM, "Unknown family");
+ 
+ 	ret = do_output(&h, tablename, &d);
+ 	nft_fini(&h);
+diff --git a/iptables/xtables-standalone.c b/iptables/xtables-standalone.c
+index 1a28c5480629f..022d5dd44abbf 100644
+--- a/iptables/xtables-standalone.c
++++ b/iptables/xtables-standalone.c
+@@ -44,9 +44,7 @@ xtables_main(int family, const char *progname, int argc, char *argv[])
+ {
+ 	int ret;
+ 	char *table = "filter";
+-	struct nft_handle h = {
+-		.family = family,
+-	};
++	struct nft_handle h;
+ 
+ 	xtables_globals.program_name = progname;
+ 	ret = xtables_init_all(&xtables_globals, family);
+@@ -61,7 +59,7 @@ xtables_main(int family, const char *progname, int argc, char *argv[])
+ 	init_extensions4();
+ #endif
+ 
+-	if (nft_init(&h, xtables_ipv4) < 0) {
++	if (nft_init(&h, family, xtables_ipv4) < 0) {
+ 		fprintf(stderr, "%s/%s Failed to initialize nft: %s\n",
+ 				xtables_globals.program_name,
+ 				xtables_globals.program_version,
+diff --git a/iptables/xtables-translate.c b/iptables/xtables-translate.c
+index 0f95855b41aa4..76ad7eb69eca9 100644
+--- a/iptables/xtables-translate.c
++++ b/iptables/xtables-translate.c
+@@ -480,7 +480,7 @@ static int xtables_xlate_main_common(struct nft_handle *h,
+ 		return 1;
+ 	}
+ 
+-	if (nft_init(h, tables) < 0) {
++	if (nft_init(h, family, tables) < 0) {
+ 		fprintf(stderr, "%s/%s Failed to initialize nft: %s\n",
+ 				xtables_globals.program_name,
+ 				xtables_globals.program_version,
+diff --git a/iptables/xtables.c b/iptables/xtables.c
+index 8f9dc628d0029..4b24d15c46295 100644
+--- a/iptables/xtables.c
++++ b/iptables/xtables.c
+@@ -571,10 +571,6 @@ void do_parse(struct nft_handle *h, int argc, char *argv[],
+ 	   demand-load a protocol. */
+ 	opterr = 0;
+ 
+-	h->ops = nft_family_ops_lookup(h->family);
+-	if (h->ops == NULL)
+-		xtables_error(PARAMETER_PROBLEM, "Unknown family");
+-
+ 	opts = xt_params->orig_opts;
+ 	while ((cs->c = getopt_long(argc, argv,
+ 	   "-:A:C:D:R:I:L::S::M:F::Z::N:X::E:P:Vh::o:p:s:d:j:i:fbvw::W::nt:m:xc:g:46",
+-- 
+2.26.2
+

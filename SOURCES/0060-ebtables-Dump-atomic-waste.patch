@@ -1,0 +1,102 @@
+From c1eaf1738533eeec3dc1bdc2285dbf28c68d5042 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Fri, 30 Jul 2021 12:25:10 +0200
+Subject: [PATCH] ebtables: Dump atomic waste
+
+With ebtables-nft.8 now educating people about the missing
+functionality, get rid of atomic remains in source code. This eliminates
+mostly comments except for --atomic-commit which was treated as alias of
+--init-table. People not using the latter are probably trying to
+atomic-commit from an atomic-file which in turn is not supported, so no
+point keeping it.
+
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 263186372dc4ae6a54a29bea644bcf1fc8dc3fc0)
+---
+ iptables/xtables-eb.c | 53 -------------------------------------------
+ 1 file changed, 53 deletions(-)
+
+diff --git a/iptables/xtables-eb.c b/iptables/xtables-eb.c
+index c006bc95ac681..b836616ed0259 100644
+--- a/iptables/xtables-eb.c
++++ b/iptables/xtables-eb.c
+@@ -262,10 +262,6 @@ struct option ebt_original_options[] =
+ 	{ "new-chain"      , required_argument, 0, 'N' },
+ 	{ "rename-chain"   , required_argument, 0, 'E' },
+ 	{ "delete-chain"   , optional_argument, 0, 'X' },
+-	{ "atomic-init"    , no_argument      , 0, 7   },
+-	{ "atomic-commit"  , no_argument      , 0, 8   },
+-	{ "atomic-file"    , required_argument, 0, 9   },
+-	{ "atomic-save"    , no_argument      , 0, 10  },
+ 	{ "init-table"     , no_argument      , 0, 11  },
+ 	{ "concurrent"     , no_argument      , 0, 13  },
+ 	{ 0 }
+@@ -371,10 +367,6 @@ static void print_help(const struct xtables_target *t,
+ "--new-chain -N chain          : create a user defined chain\n"
+ "--rename-chain -E old new     : rename a chain\n"
+ "--delete-chain -X [chain]     : delete a user defined chain\n"
+-"--atomic-commit               : update the kernel w/t table contained in <FILE>\n"
+-"--atomic-init                 : put the initial kernel table into <FILE>\n"
+-"--atomic-save                 : put the current kernel table into <FILE>\n"
+-"--atomic-file file            : set <FILE> to file\n\n"
+ "Options:\n"
+ "--proto  -p [!] proto         : protocol hexadecimal, by name or LENGTH\n"
+ "--src    -s [!] address[/mask]: source mac address\n"
+@@ -1116,54 +1108,9 @@ print_zero:
+ 					       "Use --Lmac2 with -L");
+ 			flags |= LIST_MAC2;
+ 			break;
+-		case 8 : /* atomic-commit */
+-/*
+-			replace->command = c;
+-			if (OPT_COMMANDS)
+-				ebt_print_error2("Multiple commands are not allowed");
+-			replace->flags |= OPT_COMMAND;
+-			if (!replace->filename)
+-				ebt_print_error2("No atomic file specified");*/
+-			/* Get the information from the file */
+-			/*ebt_get_table(replace, 0);*/
+-			/* We don't want the kernel giving us its counters,
+-			 * they would overwrite the counters extracted from
+-			 * the file */
+-			/*replace->num_counters = 0;*/
+-			/* Make sure the table will be written to the kernel */
+-			/*free(replace->filename);
+-			replace->filename = NULL;
+-			break;*/
+-		/*case 7 :*/ /* atomic-init */
+-		/*case 10:*/ /* atomic-save */
+ 		case 11: /* init-table */
+ 			nft_table_flush(h, *table);
+ 			return 1;
+-		/*
+-			replace->command = c;
+-			if (OPT_COMMANDS)
+-				ebt_print_error2("Multiple commands are not allowed");
+-			if (c != 11 && !replace->filename)
+-				ebt_print_error2("No atomic file specified");
+-			replace->flags |= OPT_COMMAND;
+-			{
+-				char *tmp = replace->filename;*/
+-
+-				/* Get the kernel table */
+-				/*replace->filename = NULL;
+-				ebt_get_kernel_table(replace, c == 10 ? 0 : 1);
+-				replace->filename = tmp;
+-			}
+-			break;
+-		case 9 :*/ /* atomic */
+-			/*
+-			if (OPT_COMMANDS)
+-				ebt_print_error2("--atomic has to come before the command");*/
+-			/* A possible memory leak here, but this is not
+-			 * executed in daemon mode */
+-			/*replace->filename = (char *)malloc(strlen(optarg) + 1);
+-			strcpy(replace->filename, optarg);
+-			break; */
+ 		case 13 :
+ 			break;
+ 		case 1 :
+-- 
+2.33.0
+

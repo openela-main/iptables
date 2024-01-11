@@ -1,0 +1,86 @@
+From 0b886ea23e8473e692bdf20ecf4985f44408a132 Mon Sep 17 00:00:00 2001
+From: Florian Westphal <fw@strlen.de>
+Date: Sat, 12 Dec 2020 16:15:32 +0100
+Subject: [PATCH] xtables-monitor: fix rule printing
+
+trace_print_rule does a rule dump.  This prints unrelated rules
+in the same chain.  Instead the function should only request the
+specific handle.
+
+Furthermore, flush output buffer afterwards so this plays nice when
+output isn't a terminal.
+
+Signed-off-by: Florian Westphal <fw@strlen.de>
+(cherry picked from commit 07af4da52ab3002c9cb510863b4eb7aaca4fb43b)
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ iptables/xtables-monitor.c | 32 +++++++++++++++-----------------
+ 1 file changed, 15 insertions(+), 17 deletions(-)
+
+diff --git a/iptables/xtables-monitor.c b/iptables/xtables-monitor.c
+index 92962a2a95f48..43b9064c3d30e 100644
+--- a/iptables/xtables-monitor.c
++++ b/iptables/xtables-monitor.c
+@@ -227,12 +227,12 @@ static void trace_print_rule(const struct nftnl_trace *nlt, struct cb_arg *args)
+ 		exit(EXIT_FAILURE);
+ 	}
+ 
+-	nlh = nftnl_chain_nlmsg_build_hdr(buf, NFT_MSG_GETRULE, family, NLM_F_DUMP, 0);
++	nlh = nftnl_chain_nlmsg_build_hdr(buf, NFT_MSG_GETRULE, family, 0, 0);
+ 
+         nftnl_rule_set_u32(r, NFTNL_RULE_FAMILY, family);
+ 	nftnl_rule_set_str(r, NFTNL_RULE_CHAIN, chain);
+ 	nftnl_rule_set_str(r, NFTNL_RULE_TABLE, table);
+-	nftnl_rule_set_u64(r, NFTNL_RULE_POSITION, handle);
++	nftnl_rule_set_u64(r, NFTNL_RULE_HANDLE, handle);
+ 	nftnl_rule_nlmsg_build_payload(nlh, r);
+ 	nftnl_rule_free(r);
+ 
+@@ -248,24 +248,21 @@ static void trace_print_rule(const struct nftnl_trace *nlt, struct cb_arg *args)
+ 	}
+ 
+ 	portid = mnl_socket_get_portid(nl);
+-        if (mnl_socket_sendto(nl, nlh, nlh->nlmsg_len) < 0) {
+-                perror("mnl_socket_send");
+-                exit(EXIT_FAILURE);
+-        }
++	if (mnl_socket_sendto(nl, nlh, nlh->nlmsg_len) < 0) {
++		perror("mnl_socket_send");
++		exit(EXIT_FAILURE);
++	}
+ 
+ 	ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
+-        while (ret > 0) {
++	if (ret > 0) {
+ 		args->is_event = false;
+-                ret = mnl_cb_run(buf, ret, 0, portid, rule_cb, args);
+-                if (ret <= 0)
+-                        break;
+-                ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
+-        }
+-        if (ret == -1) {
+-                perror("error");
+-                exit(EXIT_FAILURE);
+-        }
+-        mnl_socket_close(nl);
++		ret = mnl_cb_run(buf, ret, 0, portid, rule_cb, args);
++	}
++	if (ret == -1) {
++		perror("error");
++		exit(EXIT_FAILURE);
++	}
++	mnl_socket_close(nl);
+ }
+ 
+ static void trace_print_packet(const struct nftnl_trace *nlt, struct cb_arg *args)
+@@ -531,6 +528,7 @@ static int trace_cb(const struct nlmsghdr *nlh, struct cb_arg *arg)
+ err_free:
+ 	nftnl_trace_free(nlt);
+ err:
++	fflush(stdout);
+ 	return MNL_CB_OK;
+ }
+ 
+-- 
+2.31.1
+

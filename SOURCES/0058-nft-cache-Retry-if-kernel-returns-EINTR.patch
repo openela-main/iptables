@@ -1,0 +1,77 @@
+From 681cb811e4cb8c5f22fd0fae60a3533289657705 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Wed, 4 Aug 2021 17:14:05 +0200
+Subject: [PATCH] nft: cache: Retry if kernel returns EINTR
+
+In case of parallel ruleset updates, recvfrom() calls may return EINTR.
+Due to the fact that cache fetches may get triggered while iterating
+over cache elements, __nft_build_cache must not restart based on
+comparing before and after generation ID like upstream does. Instead,
+just retry the recvfrom() calls until they either succeed or return a
+different error than EINTR.
+---
+ iptables/nft-cache.c | 18 ++++++++++++++----
+ 1 file changed, 14 insertions(+), 4 deletions(-)
+
+diff --git a/iptables/nft-cache.c b/iptables/nft-cache.c
+index 9623b463f0dd5..699dc66a95cd1 100644
+--- a/iptables/nft-cache.c
++++ b/iptables/nft-cache.c
+@@ -98,9 +98,12 @@ static int fetch_table_cache(struct nft_handle *h)
+ 	nlh = nftnl_rule_nlmsg_build_hdr(buf, NFT_MSG_GETTABLE, h->family,
+ 					NLM_F_DUMP, h->seq);
+ 
++retry:
+ 	ret = mnl_talk(h, nlh, nftnl_table_list_cb, list);
+-	if (ret < 0 && errno == EINTR)
++	if (ret < 0 && errno == EINTR) {
+ 		assert(nft_restart(h) >= 0);
++		goto retry;
++	}
+ 
+ 	h->cache->tables = list;
+ 
+@@ -275,10 +278,11 @@ static int fetch_set_cache(struct nft_handle *h,
+ 						NLM_F_DUMP, h->seq);
+ 	}
+ 
++retry:
+ 	ret = mnl_talk(h, nlh, nftnl_set_list_cb, &d);
+ 	if (ret < 0 && errno == EINTR) {
+ 		assert(nft_restart(h) >= 0);
+-		return ret;
++		goto retry;
+ 	}
+ 
+ 	if (t && set) {
+@@ -355,9 +359,12 @@ static int fetch_chain_cache(struct nft_handle *h,
+ 						  h->seq);
+ 	}
+ 
++retry:
+ 	ret = mnl_talk(h, nlh, nftnl_chain_list_cb, &d);
+-	if (ret < 0 && errno == EINTR)
++	if (ret < 0 && errno == EINTR) {
+ 		assert(nft_restart(h) >= 0);
++		goto retry;
++	}
+ 
+ 	return ret;
+ }
+@@ -404,9 +411,12 @@ static int nft_rule_list_update(struct nftnl_chain *c, void *data)
+ 					NLM_F_DUMP, h->seq);
+ 	nftnl_rule_nlmsg_build_payload(nlh, rule);
+ 
++retry:
+ 	ret = mnl_talk(h, nlh, nftnl_rule_list_cb, c);
+-	if (ret < 0 && errno == EINTR)
++	if (ret < 0 && errno == EINTR) {
+ 		assert(nft_restart(h) >= 0);
++		goto retry;
++	}
+ 
+ 	nftnl_rule_free(rule);
+ 
+-- 
+2.32.0
+

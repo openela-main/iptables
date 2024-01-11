@@ -1,0 +1,55 @@
+From 674cce10a34e90f2791a3d58789793eef29e8f8b Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Mon, 26 Oct 2020 17:25:03 +0100
+Subject: [PATCH] tests: shell: Improve concurrent noflush restore test a bit
+
+The described issue happens only if chain FOO does not exist at program
+start so flush the ruleset after each iteration to make sure this is the
+case. Sadly the bug is still not 100% reproducible on my testing VM.
+
+While being at it, add a paragraph describing what exact situation the
+test is trying to provoke.
+
+Fixes: dac904bdcd9a1 ("nft: Fix for concurrent noflush restore calls")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit ed8c8b9316451a4499eeb592d2cf7d782bbe4e9a)
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ .../ipt-restore/0016-concurrent-restores_0         | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
+
+diff --git a/iptables/tests/shell/testcases/ipt-restore/0016-concurrent-restores_0 b/iptables/tests/shell/testcases/ipt-restore/0016-concurrent-restores_0
+index 53ec12fa368af..aa746ab458a3c 100755
+--- a/iptables/tests/shell/testcases/ipt-restore/0016-concurrent-restores_0
++++ b/iptables/tests/shell/testcases/ipt-restore/0016-concurrent-restores_0
+@@ -1,5 +1,14 @@
+ #!/bin/bash
+ 
++# test for iptables-restore --noflush skipping an explicitly requested chain
++# flush because the chain did not exist when cache was fetched. In order to
++# expect for that chain to appear when refreshing the transaction (due to a
++# concurrent ruleset change), the chain flush job has to be present in batch
++# job list (although disabled at first).
++# The input line requesting chain flush is ':FOO - [0:0]'. RS1 and RS2 contents
++# are crafted to cause EBUSY when deleting the BAR* chains if FOO is not
++# flushed in the same transaction.
++
+ set -e
+ 
+ RS="*filter
+@@ -45,7 +54,12 @@ RS2="$RS
+ COMMIT
+ "
+ 
++NORS="*filter
++COMMIT
++"
++
+ for n in $(seq 1 10); do
++	$XT_MULTI iptables-restore <<< "$NORS"
+ 	$XT_MULTI iptables-restore --noflush -w <<< "$RS1" &
+ 	$XT_MULTI iptables-restore --noflush -w <<< "$RS2" &
+ 	wait -n
+-- 
+2.28.0
+

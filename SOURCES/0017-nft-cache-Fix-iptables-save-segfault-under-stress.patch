@@ -1,0 +1,84 @@
+From 38c94a9f5ea03deffe0a34056a0f83a4af4641bb Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Fri, 13 Mar 2020 13:02:12 +0100
+Subject: [PATCH] nft: cache: Fix iptables-save segfault under stress
+
+If kernel ruleset is constantly changing, code called by
+nft_is_table_compatible() may crash: For each item in table's chain
+list, nft_is_chain_compatible() is called. This in turn calls
+nft_build_cache() to fetch chain's rules. Though if kernel genid has changed
+meanwhile, cache is flushed and rebuilt from scratch, thereby freeing
+table's chain list - the foreach loop in nft_is_table_compatible() then
+operates on freed memory.
+
+A simple reproducer (may need a few calls):
+
+| RULESET='*filter
+| :INPUT ACCEPT [10517:1483527]
+| :FORWARD ACCEPT [0:0]
+| :OUTPUT ACCEPT [1714:105671]
+| COMMIT
+| '
+|
+| for ((i = 0; i < 100; i++)); do
+|         iptables-nft-restore <<< "$RULESET" &
+| done &
+| iptables-nft-save
+
+To fix the problem, basically revert commit ab1cd3b510fa5 ("nft: ensure
+cache consistency") so that __nft_build_cache() no longer flushes the
+cache. Instead just record kernel's genid when fetching for the first
+time. If kernel rule set changes until the changes are committed, the
+commit simply fails and local cache is being rebuilt.
+
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 200bc399651499f502ac0de45f4d4aa4c9d37ab6)
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ iptables/nft-cache.c | 16 ++--------------
+ 1 file changed, 2 insertions(+), 14 deletions(-)
+
+diff --git a/iptables/nft-cache.c b/iptables/nft-cache.c
+index 6f21f2283e0fb..07265b7795e4f 100644
+--- a/iptables/nft-cache.c
++++ b/iptables/nft-cache.c
+@@ -452,15 +452,11 @@ __nft_build_cache(struct nft_handle *h, enum nft_cache_level level,
+ 		  const struct builtin_table *t, const char *set,
+ 		  const char *chain)
+ {
+-	uint32_t genid_start, genid_stop;
+-
+ 	if (level <= h->cache_level)
+ 		return;
+-retry:
+-	mnl_genid_get(h, &genid_start);
+ 
+-	if (h->cache_level && genid_start != h->nft_genid)
+-		flush_chain_cache(h, NULL);
++	if (!h->nft_genid)
++		mnl_genid_get(h, &h->nft_genid);
+ 
+ 	switch (h->cache_level) {
+ 	case NFT_CL_NONE:
+@@ -487,18 +483,10 @@ retry:
+ 		break;
+ 	}
+ 
+-	mnl_genid_get(h, &genid_stop);
+-	if (genid_start != genid_stop) {
+-		flush_chain_cache(h, NULL);
+-		goto retry;
+-	}
+-
+ 	if (!t && !chain)
+ 		h->cache_level = level;
+ 	else if (h->cache_level < NFT_CL_TABLES)
+ 		h->cache_level = NFT_CL_TABLES;
+-
+-	h->nft_genid = genid_start;
+ }
+ 
+ void nft_build_cache(struct nft_handle *h, struct nftnl_chain *c)
+-- 
+2.25.1
+

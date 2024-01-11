@@ -1,0 +1,39 @@
+From d272e1225bf9b31ec0397bd86b39a54da49d5468 Mon Sep 17 00:00:00 2001
+From: Florian Westphal <fw@strlen.de>
+Date: Sat, 12 Dec 2020 16:15:33 +0100
+Subject: [PATCH] xtables-monitor: fix packet family protocol
+
+This prints the family passed on the command line (which might be 0).
+Print the table family instead.
+
+Signed-off-by: Florian Westphal <fw@strlen.de>
+(cherry picked from commit 946923b640afc2249cf98743ff60a97291108701)
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ iptables/xtables-monitor.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/iptables/xtables-monitor.c b/iptables/xtables-monitor.c
+index 43b9064c3d30e..9fa1ca166a61e 100644
+--- a/iptables/xtables-monitor.c
++++ b/iptables/xtables-monitor.c
+@@ -273,14 +273,14 @@ static void trace_print_packet(const struct nftnl_trace *nlt, struct cb_arg *arg
+ 	uint32_t mark;
+ 	char name[IFNAMSIZ];
+ 
+-	printf("PACKET: %d %08x ", args->nfproto, nftnl_trace_get_u32(nlt, NFTNL_TRACE_ID));
++	family = nftnl_trace_get_u32(nlt, NFTNL_TRACE_FAMILY);
++	printf("PACKET: %d %08x ", family, nftnl_trace_get_u32(nlt, NFTNL_TRACE_ID));
+ 
+ 	if (nftnl_trace_is_set(nlt, NFTNL_TRACE_IIF))
+ 		printf("IN=%s ", if_indextoname(nftnl_trace_get_u32(nlt, NFTNL_TRACE_IIF), name));
+ 	if (nftnl_trace_is_set(nlt, NFTNL_TRACE_OIF))
+ 		printf("OUT=%s ", if_indextoname(nftnl_trace_get_u32(nlt, NFTNL_TRACE_OIF), name));
+ 
+-	family = nftnl_trace_get_u32(nlt, NFTNL_TRACE_FAMILY);
+ 	nfproto = family;
+ 	if (nftnl_trace_is_set(nlt, NFTNL_TRACE_NFPROTO)) {
+ 		nfproto = nftnl_trace_get_u32(nlt, NFTNL_TRACE_NFPROTO);
+-- 
+2.31.1
+

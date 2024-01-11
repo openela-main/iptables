@@ -1,0 +1,41 @@
+From 3a4d59e5cb35cf2395cfd8004dd16d45dd889e11 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Thu, 5 Dec 2019 16:35:51 +0100
+Subject: [PATCH] extensions: among: Check call to fstat()
+
+If this fails, a bogus length value may be passed to mmap().
+
+Fixes: 26753888720d8 ("nft: bridge: Rudimental among extension support")
+(cherry picked from commit 25b38bcbf2fdc019f438805c7d1ecd877af9c968)
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ extensions/libebt_among.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/extensions/libebt_among.c b/extensions/libebt_among.c
+index 2e87db3bc06fa..715d559f432c2 100644
+--- a/extensions/libebt_among.c
++++ b/extensions/libebt_among.c
+@@ -6,6 +6,7 @@
+  * August, 2003
+  */
+ 
++#include <errno.h>
+ #include <ctype.h>
+ #include <fcntl.h>
+ #include <getopt.h>
+@@ -137,7 +138,10 @@ static int bramong_parse(int c, char **argv, int invert,
+ 		if ((fd = open(optarg, O_RDONLY)) == -1)
+ 			xtables_error(PARAMETER_PROBLEM,
+ 				      "Couldn't open file '%s'", optarg);
+-		fstat(fd, &stats);
++		if (fstat(fd, &stats) < 0)
++			xtables_error(PARAMETER_PROBLEM,
++				      "fstat(%s) failed: '%s'",
++				      optarg, strerror(errno));
+ 		flen = stats.st_size;
+ 		/* use mmap because the file will probably be big */
+ 		optarg = mmap(0, flen, PROT_READ | PROT_WRITE,
+-- 
+2.24.0
+

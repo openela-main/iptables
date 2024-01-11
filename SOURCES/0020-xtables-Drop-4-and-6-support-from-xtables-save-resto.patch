@@ -1,0 +1,81 @@
+From ea9d40744307d7c49808d8fabfc904d525081055 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Fri, 21 Feb 2020 13:29:05 +0100
+Subject: [PATCH] xtables: Drop -4 and -6 support from xtables-{save,restore}
+
+Legacy tools don't support those options, either.
+
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 0f40a8bc49d3f7b815336199931a82f919f37c4e)
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ iptables/xtables-restore.c |  9 +--------
+ iptables/xtables-save.c    | 11 +----------
+ 2 files changed, 2 insertions(+), 18 deletions(-)
+
+diff --git a/iptables/xtables-restore.c b/iptables/xtables-restore.c
+index 11834c0ea98c5..c472ac9bf651b 100644
+--- a/iptables/xtables-restore.c
++++ b/iptables/xtables-restore.c
+@@ -379,7 +379,7 @@ xtables_restore_main(int family, const char *progname, int argc, char *argv[])
+ 		exit(1);
+ 	}
+ 
+-	while ((c = getopt_long(argc, argv, "bcvVthnM:T:46wW", options, NULL)) != -1) {
++	while ((c = getopt_long(argc, argv, "bcvVthnM:T:wW", options, NULL)) != -1) {
+ 		switch (c) {
+ 			case 'b':
+ 				fprintf(stderr, "-b/--binary option is not implemented\n");
+@@ -408,13 +408,6 @@ xtables_restore_main(int family, const char *progname, int argc, char *argv[])
+ 			case 'T':
+ 				p.tablename = optarg;
+ 				break;
+-			case '4':
+-				h.family = AF_INET;
+-				break;
+-			case '6':
+-				h.family = AF_INET6;
+-				xtables_set_nfproto(AF_INET6);
+-				break;
+ 			case 'w': /* fallthrough.  Ignored by xt-restore */
+ 			case 'W':
+ 				if (!optarg && xs_has_arg(argc, argv))
+diff --git a/iptables/xtables-save.c b/iptables/xtables-save.c
+index 228282deaed07..28f7490275ce5 100644
+--- a/iptables/xtables-save.c
++++ b/iptables/xtables-save.c
+@@ -32,7 +32,7 @@
+ #define prog_name xtables_globals.program_name
+ #define prog_vers xtables_globals.program_version
+ 
+-static const char *ipt_save_optstring = "bcdt:M:f:46V";
++static const char *ipt_save_optstring = "bcdt:M:f:V";
+ static const struct option ipt_save_options[] = {
+ 	{.name = "counters", .has_arg = false, .val = 'c'},
+ 	{.name = "version",  .has_arg = false, .val = 'V'},
+@@ -40,8 +40,6 @@ static const struct option ipt_save_options[] = {
+ 	{.name = "table",    .has_arg = true,  .val = 't'},
+ 	{.name = "modprobe", .has_arg = true,  .val = 'M'},
+ 	{.name = "file",     .has_arg = true,  .val = 'f'},
+-	{.name = "ipv4",     .has_arg = false, .val = '4'},
+-	{.name = "ipv6",     .has_arg = false, .val = '6'},
+ 	{NULL},
+ };
+ 
+@@ -187,13 +185,6 @@ xtables_save_main(int family, int argc, char *argv[],
+ 		case 'd':
+ 			dump = true;
+ 			break;
+-		case '4':
+-			h.family = AF_INET;
+-			break;
+-		case '6':
+-			h.family = AF_INET6;
+-			xtables_set_nfproto(AF_INET6);
+-			break;
+ 		case 'V':
+ 			printf("%s v%s (nf_tables)\n", prog_name, prog_vers);
+ 			exit(0);
+-- 
+2.26.2
+

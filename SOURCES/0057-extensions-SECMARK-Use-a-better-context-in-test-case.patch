@@ -1,0 +1,26 @@
+From 2a45c01c4d3892871b3d3d6b67d10cb62abc561e Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Fri, 16 Jul 2021 21:51:49 +0200
+Subject: [PATCH] extensions: SECMARK: Use a better context in test case
+
+RHEL SELinux policies don't allow setting
+system_u:object_r:firewalld_exec_t:s0 context. Use one instead which has
+'packet_type' attribute (identified via
+'seinfo -xt | grep packet_type').
+---
+ extensions/libxt_SECMARK.t | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/extensions/libxt_SECMARK.t b/extensions/libxt_SECMARK.t
+index 39d4c09348bf4..295e7a7244902 100644
+--- a/extensions/libxt_SECMARK.t
++++ b/extensions/libxt_SECMARK.t
+@@ -1,4 +1,4 @@
+ :INPUT,FORWARD,OUTPUT
+ *security
+--j SECMARK --selctx system_u:object_r:firewalld_exec_t:s0;=;OK
++-j SECMARK --selctx system_u:object_r:ssh_server_packet_t:s0;=;OK
+ -j SECMARK;;FAIL
+-- 
+2.31.1
+

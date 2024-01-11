@@ -1,0 +1,53 @@
+From f5185f4efad409fc7ec4ae05267b642ee4103a6c Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Fri, 4 Dec 2020 17:44:51 +0100
+Subject: [PATCH] tests/shell: Test for fixed extension registration
+
+Use strace to look at iptables-restore behaviour with typically
+problematic input (conntrack revision 0 is no longer supported by
+current kernels) to make sure the fix in commit a1eaaceb0460b
+("libxtables: Simplify pending extension registration") is still
+effective.
+
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 93d0c97e8b6713f51ba679e01a1338d4f9076e7c)
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ .../0017-pointless-compat-checks_0            | 25 +++++++++++++++++++
+ 1 file changed, 25 insertions(+)
+ create mode 100755 iptables/tests/shell/testcases/ipt-restore/0017-pointless-compat-checks_0
+
+diff --git a/iptables/tests/shell/testcases/ipt-restore/0017-pointless-compat-checks_0 b/iptables/tests/shell/testcases/ipt-restore/0017-pointless-compat-checks_0
+new file mode 100755
+index 0000000000000..cf73de32df409
+--- /dev/null
++++ b/iptables/tests/shell/testcases/ipt-restore/0017-pointless-compat-checks_0
+@@ -0,0 +1,25 @@
++#!/bin/bash
++
++# A bug in extension registration would leave unsupported older extension
++# revisions in pending list and get compatibility checked again for each rule
++# using them. With SELinux enabled, the resulting socket() call per rule leads
++# to significant slowdown (~50% performance in worst cases).
++
++set -e
++
++strace --version >/dev/null || { echo "skip for missing strace"; exit 0; }
++
++RULESET="$(
++	echo "*filter"
++	for ((i = 0; i < 100; i++)); do
++		echo "-A FORWARD -m conntrack --ctstate NEW"
++	done
++	echo "COMMIT"
++)"
++
++cmd="$XT_MULTI iptables-restore"
++socketcount=$(strace -esocket $cmd <<< "$RULESET" 2>&1 | wc -l)
++
++# unpatched iptables-restore would open 111 sockets,
++# patched only 12 but keep a certain margin for future changes
++[[ $socketcount -lt 20 ]]
+-- 
+2.28.0
+

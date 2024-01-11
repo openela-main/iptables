@@ -1,0 +1,48 @@
+From 9b1dc489369e19ffd78a69de31f4ac653070eaf8 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Sat, 6 Nov 2021 01:32:47 +0100
+Subject: [PATCH] xshared: Make load_proto() static
+
+The last outside users vanished ten years ago.
+
+Fixes: 449cdd6bcc8d1 ("src: combine default_command functions")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 7213561d9d7a17c4db29c867b2607241941dae5a)
+
+Conflicts:
+	iptables/xshared.h
+-> Context change due to missing commit 3664249f52030
+   ("xshared: Eliminate iptables_command_state->invert").
+---
+ iptables/xshared.c | 2 +-
+ iptables/xshared.h | 1 -
+ 2 files changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/iptables/xshared.c b/iptables/xshared.c
+index 5ae158908b109..26e938309eab3 100644
+--- a/iptables/xshared.c
++++ b/iptables/xshared.c
+@@ -106,7 +106,7 @@ static bool should_load_proto(struct iptables_command_state *cs)
+ 	return !cs->proto_used;
+ }
+ 
+-struct xtables_match *load_proto(struct iptables_command_state *cs)
++static struct xtables_match *load_proto(struct iptables_command_state *cs)
+ {
+ 	if (!should_load_proto(cs))
+ 		return NULL;
+diff --git a/iptables/xshared.h b/iptables/xshared.h
+index 10f6e0b5a0e98..d80c8beee1894 100644
+--- a/iptables/xshared.h
++++ b/iptables/xshared.h
+@@ -155,7 +155,6 @@ extern void print_extension_helps(const struct xtables_target *,
+ extern const char *proto_to_name(uint16_t, int);
+ extern int command_default(struct iptables_command_state *,
+ 	struct xtables_globals *);
+-extern struct xtables_match *load_proto(struct iptables_command_state *);
+ extern int subcmd_main(int, char **, const struct subcommand *);
+ extern void xs_init_target(struct xtables_target *);
+ extern void xs_init_match(struct xtables_match *);
+-- 
+2.40.0
+

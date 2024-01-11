@@ -1,0 +1,45 @@
+From 3bf8687623a0a7b15ce9621f0da6f3361d5753df Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Thu, 6 Oct 2022 02:08:10 +0200
+Subject: [PATCH] tests: shell: Fix expected output for ip6tables dst match
+
+Forgot to update the shell testsuites when fixing for duplicate
+whitespace in output.
+
+Fixes: 11e06cbb3a877 ("extensions: libip6t_dst: Fix output for empty options")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit d89cc773618ddbdedd1ae967a8e686adbaf501f6)
+
+Conflicts:
+	iptables/tests/shell/testcases/ip6tables/0002-verbose-output_0
+-> Adjusted to missing commit 68e09d49ef26c
+   ("tests: shell: Fix testcases for changed ip6tables opts output").
+---
+ .../tests/shell/testcases/ip6tables/0002-verbose-output_0     | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/iptables/tests/shell/testcases/ip6tables/0002-verbose-output_0 b/iptables/tests/shell/testcases/ip6tables/0002-verbose-output_0
+index 7624cbab655ad..65f755b627bb0 100755
+--- a/iptables/tests/shell/testcases/ip6tables/0002-verbose-output_0
++++ b/iptables/tests/shell/testcases/ip6tables/0002-verbose-output_0
+@@ -12,7 +12,7 @@ VOUT2='ACCEPT  all opt    in eth2 out eth3  feed:babe::4  -> feed:babe::5'
+ RULE3='-p icmpv6 -m icmp6 --icmpv6-type no-route'
+ VOUT3='  ipv6-icmp opt    in * out *  ::/0  -> ::/0   ipv6-icmptype 1 code 0'
+ RULE4='-m dst --dst-len 42 -m rt --rt-type 23'
+-VOUT4='  all opt    in * out *  ::/0  -> ::/0   dst length:42  rt type:23'
++VOUT4='  all opt    in * out *  ::/0  -> ::/0   dst length:42 rt type:23'
+ RULE5='-m frag --fragid 1337 -j LOG'
+ VOUT5='LOG  all opt    in * out *  ::/0  -> ::/0   frag id:1337 LOG flags 0 level 4'
+ 
+@@ -36,7 +36,7 @@ Chain FORWARD (policy ACCEPT 0 packets, 0 bytes)
+     0     0 ACCEPT     all      eth2   eth3    feed:babe::1         feed:babe::2
+     0     0 ACCEPT     all      eth2   eth3    feed:babe::4         feed:babe::5
+     0     0            ipv6-icmp    *      *       ::/0                 ::/0                 ipv6-icmptype 1 code 0
+-    0     0            all      *      *       ::/0                 ::/0                 dst length:42  rt type:23
++    0     0            all      *      *       ::/0                 ::/0                 dst length:42 rt type:23
+     0     0 LOG        all      *      *       ::/0                 ::/0                 frag id:1337 LOG flags 0 level 4
+ 
+ Chain OUTPUT (policy ACCEPT 0 packets, 0 bytes)
+-- 
+2.40.0
+

@@ -1,0 +1,31 @@
+From 5d3cf36df7d10011493f9d170be9077b734c52ad Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Wed, 23 Nov 2022 03:35:34 +0100
+Subject: [PATCH] extensions: libebt_mark: Fix mark target xlate
+
+Target value is constructed setting all non-target bits to one instead
+of zero.
+
+Fixes: 03ecffe6c2cc0 ("ebtables-compat: add initial translations")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit c6d7a1dd72a21e7f8f117eedb61bff5b94ef5f0c)
+---
+ extensions/libebt_mark.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/extensions/libebt_mark.c b/extensions/libebt_mark.c
+index 423c5c9133d0d..40e49618e0215 100644
+--- a/extensions/libebt_mark.c
++++ b/extensions/libebt_mark.c
+@@ -201,7 +201,7 @@ static int brmark_xlate(struct xt_xlate *xl,
+ 		return 0;
+ 	}
+ 
+-	tmp = info->target & EBT_VERDICT_BITS;
++	tmp = info->target | ~EBT_VERDICT_BITS;
+ 	xt_xlate_add(xl, "0x%lx %s ", info->mark, brmark_verdict(tmp));
+ 	return 1;
+ }
+-- 
+2.40.0
+

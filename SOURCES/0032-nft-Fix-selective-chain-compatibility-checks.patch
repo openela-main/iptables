@@ -1,0 +1,41 @@
+From 06bf588263f81b0d254d49b584b26445a788638d Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Wed, 23 Sep 2020 19:13:45 +0200
+Subject: [PATCH] nft: Fix selective chain compatibility checks
+
+Since commit 80251bc2a56ed ("nft: remove cache build calls"), 'chain'
+parameter passed to nft_chain_list_get() is no longer effective.
+Before, it was used to fetch only that single chain from kernel when
+populating the cache. So the returned list of chains for which
+compatibility checks are done would contain only that single chain.
+
+Re-establish the single chain compat checking by introducing a dedicated
+code path to nft_is_chain_compatible() doing so.
+
+Fixes: 80251bc2a56ed ("nft: remove cache build calls")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 694612adf87fb614f16a2b678f32745d5c9d7876)
+---
+ iptables/nft.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/iptables/nft.c b/iptables/nft.c
+index bdf252198f155..7f87d46dcc44c 100644
+--- a/iptables/nft.c
++++ b/iptables/nft.c
+@@ -3575,6 +3575,12 @@ bool nft_is_table_compatible(struct nft_handle *h,
+ {
+ 	struct nftnl_chain_list *clist;
+ 
++	if (chain) {
++		struct nftnl_chain *c = nft_chain_find(h, table, chain);
++
++		return c && !nft_is_chain_compatible(c, h);
++	}
++
+ 	clist = nft_chain_list_get(h, table, chain);
+ 	if (clist == NULL)
+ 		return false;
+-- 
+2.40.0
+

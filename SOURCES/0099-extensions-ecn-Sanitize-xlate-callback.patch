@@ -1,0 +1,30 @@
+From ae3975e65d0f524d4d44c61407078bd11b10493e Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Thu, 17 Nov 2022 16:37:02 +0100
+Subject: [PATCH] extensions: ecn: Sanitize xlate callback
+
+Catch unexpected values in einfo->ip_ect.
+
+Fixes: ca42442093d3d ("iptables: extensions: libxt_ecn: Add translation to nft")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 424ef98918d31377a305cdf1626e1c1f69ab6df1)
+---
+ extensions/libxt_ecn.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/extensions/libxt_ecn.c b/extensions/libxt_ecn.c
+index ad3c7a0307a0d..83a4acfab7da7 100644
+--- a/extensions/libxt_ecn.c
++++ b/extensions/libxt_ecn.c
+@@ -156,6 +156,8 @@ static int ecn_xlate(struct xt_xlate *xl,
+ 		case 3:
+ 			xt_xlate_add(xl, "ce");
+ 			break;
++		default:
++			return 0;
+ 		}
+ 	}
+ 	return 1;
+-- 
+2.40.0
+

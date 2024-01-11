@@ -1,0 +1,70 @@
+From aace6f5ac84d738f6b5f0ed1d56b3713b0435cc4 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?=C5=A0t=C4=9Bp=C3=A1n=20N=C4=9Bmec?= <snemec@redhat.com>
+Date: Thu, 2 Sep 2021 13:33:07 +0200
+Subject: [PATCH] iptables-test.py: print with color escapes only when stdout
+ isatty
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+When the output doesn't go to a terminal (typical case: log files),
+the escape sequences are just noise.
+
+Signed-off-by: Štěpán Němec <snemec@redhat.com>
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit b714d45dc4c2423d4df4cbf7ccf238ec441675ef)
+---
+ iptables-test.py | 23 +++++++++++++----------
+ 1 file changed, 13 insertions(+), 10 deletions(-)
+
+diff --git a/iptables-test.py b/iptables-test.py
+index 0d21f975305db..fb9503b6fffb4 100755
+--- a/iptables-test.py
++++ b/iptables-test.py
+@@ -32,22 +32,25 @@ EXTENSIONS_PATH = "extensions"
+ LOGFILE="/tmp/iptables-test.log"
+ log_file = None
+ 
++STDOUT_IS_TTY = sys.stdout.isatty()
+ 
+-class Colors:
+-    HEADER = '\033[95m'
+-    BLUE = '\033[94m'
+-    GREEN = '\033[92m'
+-    YELLOW = '\033[93m'
+-    RED = '\033[91m'
+-    ENDC = '\033[0m'
++def maybe_colored(color, text):
++    terminal_sequences = {
++        'green': '\033[92m',
++        'red': '\033[91m',
++    }
++
++    return (
++        terminal_sequences[color] + text + '\033[0m' if STDOUT_IS_TTY else text
++    )
+ 
+ 
+ def print_error(reason, filename=None, lineno=None):
+     '''
+     Prints an error with nice colors, indicating file and line number.
+     '''
+-    print(filename + ": " + Colors.RED + "ERROR" +
+-        Colors.ENDC + ": line %d (%s)" % (lineno, reason), file=sys.stderr)
++    print(filename + ": " + maybe_colored('red', "ERROR") +
++        ": line %d (%s)" % (lineno, reason), file=sys.stderr)
+ 
+ 
+ def delete_rule(iptables, rule, filename, lineno):
+@@ -282,7 +285,7 @@ log_file = None
+     if netns:
+         execute_cmd("ip netns del ____iptables-container-test", filename, 0)
+     if total_test_passed:
+-        print(filename + ": " + Colors.GREEN + "OK" + Colors.ENDC)
++        print(filename + ": " + maybe_colored('green', "OK"))
+ 
+     f.close()
+     return tests, passed
+-- 
+2.40.0
+

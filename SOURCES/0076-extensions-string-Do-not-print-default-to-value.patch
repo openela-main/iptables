@@ -1,0 +1,39 @@
+From 30c3d8d215c63b7d9244f853c94958a6194153b7 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Wed, 8 Jun 2022 13:28:10 +0200
+Subject: [PATCH] extensions: string: Do not print default --to value
+
+Default value is UINT16_MAX, not 0. Fix the conditional printing.
+
+Fixes: c6fbf41cdd157 ("update string match to reflect new kernel implementation (Pablo Neira)")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 1bfb1d916e467e2bcbc44ce1a50a2be5c12b7ef8)
+---
+ extensions/libxt_string.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/extensions/libxt_string.c b/extensions/libxt_string.c
+index 7c6366cbbf1b3..f6496f6403498 100644
+--- a/extensions/libxt_string.c
++++ b/extensions/libxt_string.c
+@@ -269,7 +269,7 @@ string_print(const void *ip, const struct xt_entry_match *match, int numeric)
+ 	printf(" ALGO name %s", info->algo);
+ 	if (info->from_offset != 0)
+ 		printf(" FROM %u", info->from_offset);
+-	if (info->to_offset != 0)
++	if (info->to_offset != UINT16_MAX)
+ 		printf(" TO %u", info->to_offset);
+ 	if (revision > 0 && info->u.v1.flags & XT_STRING_FLAG_IGNORECASE)
+ 		printf(" ICASE");
+@@ -293,7 +293,7 @@ static void string_save(const void *ip, const struct xt_entry_match *match)
+ 	printf(" --algo %s", info->algo);
+ 	if (info->from_offset != 0)
+ 		printf(" --from %u", info->from_offset);
+-	if (info->to_offset != 0)
++	if (info->to_offset != UINT16_MAX)
+ 		printf(" --to %u", info->to_offset);
+ 	if (revision > 0 && info->u.v1.flags & XT_STRING_FLAG_IGNORECASE)
+ 		printf(" --icase");
+-- 
+2.40.0
+

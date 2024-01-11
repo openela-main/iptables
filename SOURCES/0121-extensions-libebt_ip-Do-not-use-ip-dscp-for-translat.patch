@@ -1,0 +1,55 @@
+From bcf59827f2a6ab966c3719f1c02fdd67f3780f82 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Fri, 3 Feb 2023 18:58:36 +0100
+Subject: [PATCH] extensions: libebt_ip: Do not use 'ip dscp' for translation
+
+Converting from TOS field match to DSCP one is irreversible, so replay
+testing is not possible. Use a raw payload expression to produce
+something that translates 1:1 back into an 'ip' match.
+
+Fixes: 03ecffe6c2cc0 ("ebtables-compat: add initial translations")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 744c56bda974caaa274318d2825b3e43b55bf145)
+
+Conflicts:
+	extensions/libebt_ip.txlate
+-> Adjust to missing commit 09d63e818ae0d
+   ("extensions: change expected output for new format").
+---
+ extensions/libebt_ip.c      | 4 ++--
+ extensions/libebt_ip.txlate | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/extensions/libebt_ip.c b/extensions/libebt_ip.c
+index acb9bfcdbbd9f..7b6fa4a2139d4 100644
+--- a/extensions/libebt_ip.c
++++ b/extensions/libebt_ip.c
+@@ -677,10 +677,10 @@ static int brip_xlate(struct xt_xlate *xl,
+ 	brip_xlate_nh(xl, info, EBT_IP_DEST);
+ 
+ 	if (info->bitmask & EBT_IP_TOS) {
+-		xt_xlate_add(xl, "ip dscp ");
++		xt_xlate_add(xl, "@nh,8,8 ");
+ 		if (info->invflags & EBT_IP_TOS)
+ 			xt_xlate_add(xl, "!= ");
+-		xt_xlate_add(xl, "0x%02x ", info->tos & 0x3f); /* remove ECN bits */
++		xt_xlate_add(xl, "0x%02x ", info->tos);
+ 	}
+ 	if (info->bitmask & EBT_IP_PROTO) {
+ 		struct protoent *pe;
+diff --git a/extensions/libebt_ip.txlate b/extensions/libebt_ip.txlate
+index b5882c342b047..5c766e1b743ea 100644
+--- a/extensions/libebt_ip.txlate
++++ b/extensions/libebt_ip.txlate
+@@ -5,7 +5,7 @@ ebtables-translate -I FORWARD -p ip --ip-dst 10.0.0.1
+ nft insert rule bridge filter FORWARD ip daddr 10.0.0.1 counter
+ 
+ ebtables-translate -I OUTPUT 3 -p ip -o eth0 --ip-tos 0xff
+-nft insert rule bridge filter OUTPUT oifname "eth0" ip dscp 0x3f counter
++nft insert rule bridge filter OUTPUT oifname "eth0" @nh,8,8 0xff counter
+ 
+ ebtables-translate -A FORWARD -p ip --ip-proto tcp --ip-dport 22
+ nft add rule bridge filter FORWARD tcp dport 22 counter
+-- 
+2.40.0
+

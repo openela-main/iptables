@@ -1,0 +1,34 @@
+From 67ce94bf558361cf45a72957d0d563dc2742a0c2 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Sat, 1 Oct 2022 00:15:35 +0200
+Subject: [PATCH] extensions: libebt_stp: Eliminate duplicate space in output
+
+No need for print_range() to print a trailing whitespace, caller does
+this already.
+
+Fixes: fd8d7d7e5d911 ("ebtables-nft: add stp match")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 262dff31a998ef8e2507bbfd9349d761769888da)
+---
+ extensions/libebt_stp.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/extensions/libebt_stp.c b/extensions/libebt_stp.c
+index 06cf93b8d8449..9270bf822a711 100644
+--- a/extensions/libebt_stp.c
++++ b/extensions/libebt_stp.c
+@@ -145,9 +145,9 @@ static int parse_range(const char *portstring, void *lower, void *upper,
+ static void print_range(unsigned int l, unsigned int u)
+ {
+ 	if (l == u)
+-		printf("%u ", l);
++		printf("%u", l);
+ 	else
+-		printf("%u:%u ", l, u);
++		printf("%u:%u", l, u);
+ }
+ 
+ static int brstp_get_mac_and_mask(const char *from, unsigned char *to, unsigned char *mask)
+-- 
+2.40.0
+

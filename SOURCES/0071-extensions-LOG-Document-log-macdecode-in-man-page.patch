@@ -1,0 +1,28 @@
+From 32ae030336b73b57ebe0f5e74ea17e09834f3870 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Thu, 24 Mar 2022 11:06:24 +0100
+Subject: [PATCH] extensions: LOG: Document --log-macdecode in man page
+
+Help text already contains it, so no update needed there.
+
+Fixes: 127647892c7ca ("extensions: libipt_LOG/libip6t_LOG: support macdecode option")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit ce9195c6e2fa6c6daa3c34b94353a539237b3809)
+---
+ extensions/libxt_LOG.man | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/extensions/libxt_LOG.man b/extensions/libxt_LOG.man
+index 354edf4cc2916..1d5071ba720b9 100644
+--- a/extensions/libxt_LOG.man
++++ b/extensions/libxt_LOG.man
+@@ -30,3 +30,6 @@ Log options from the IP/IPv6 packet header.
+ .TP
+ \fB\-\-log\-uid\fP
+ Log the userid of the process which generated the packet.
++.TP
++\fB\-\-log\-macdecode\fP
++Log MAC addresses and protocol.
+-- 
+2.40.0
+

@@ -1,0 +1,34 @@
+From 47f8d18fa955ca7c786534622e900cd4d19cfcaf Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Wed, 29 Mar 2023 16:22:16 +0200
+Subject: [PATCH] nft-shared: Drop unused include
+
+Code does not refer to struct xt_comment_info anymore.
+
+Fixes: 3bb497c61d743 ("xtables: Fix for deleting rules with comment")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 465470184950d9035dcd1101c1f413f8a2051427)
+
+Conflicts:
+	iptables/nft-shared.c
+-> Context change due to missing commit 62ad29e9b778f
+   ("extensions: libxt_NFLOG: don't truncate log prefix on print/save").
+---
+ iptables/nft-shared.c | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/iptables/nft-shared.c b/iptables/nft-shared.c
+index 8e005ed3b5818..ed093c07d7617 100644
+--- a/iptables/nft-shared.c
++++ b/iptables/nft-shared.c
+@@ -20,7 +20,6 @@
+ 
+ #include <xtables.h>
+ 
+-#include <linux/netfilter/xt_comment.h>
+ #include <linux/netfilter/xt_limit.h>
+ 
+ #include <libmnl/libmnl.h>
+-- 
+2.40.0
+

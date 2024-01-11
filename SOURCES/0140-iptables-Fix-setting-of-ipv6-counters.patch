@@ -1,0 +1,107 @@
+From 87cf690d64630c1c32986480036c594795224ee7 Mon Sep 17 00:00:00 2001
+From: Jacek Tomasiak <jacek.tomasiak@gmail.com>
+Date: Mon, 19 Jun 2023 12:44:54 +0200
+Subject: [PATCH] iptables: Fix setting of ipv6 counters
+
+When setting counters using ip6tables-nft -c X Y the X and Y values were
+not stored.
+
+This is a fix based on 9baf3bf0e77dab6ca4b167554ec0e57b65d0af01 but
+applied to the nft variant of ipv6 not the legacy.
+
+Closes: https://bugzilla.netfilter.org/show_bug.cgi?id=1647
+Fixes: 0391677c1a0b2 ("xtables: add IPv6 support")
+Signed-off-by: Jacek Tomasiak <jtomasiak@arista.com>
+Signed-off-by: Jacek Tomasiak <jacek.tomasiak@gmail.com>
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit ed839159edf8bda8e9196f1056c4038c22d78bfd)
+
+Conflicts:
+	iptables/xshared.c
+-> Applied to iptables/nft-ipv6.c due to missing commit e4f5185d8f29a
+   ("nft: Move proto_parse and post_parse callbacks to xshared")
+---
+ iptables/nft-ipv6.c                                        | 3 +++
+ iptables/tests/shell/testcases/ip6tables/0003-list-rules_0 | 6 +++---
+ iptables/tests/shell/testcases/iptables/0003-list-rules_0  | 6 +++---
+ 3 files changed, 9 insertions(+), 6 deletions(-)
+
+diff --git a/iptables/nft-ipv6.c b/iptables/nft-ipv6.c
+index 1f73bbcb8771f..69d9bc41314fc 100644
+--- a/iptables/nft-ipv6.c
++++ b/iptables/nft-ipv6.c
+@@ -298,6 +298,9 @@ static void nft_ipv6_post_parse(int command, struct iptables_command_state *cs,
+ 	if (args->goto_set)
+ 		cs->fw6.ipv6.flags |= IP6T_F_GOTO;
+ 
++	/* nft-variants use cs->counters, legacy uses cs->fw6.counters */
++	cs->counters.pcnt = args->pcnt_cnt;
++	cs->counters.bcnt = args->bcnt_cnt;
+ 	cs->fw6.counters.pcnt = args->pcnt_cnt;
+ 	cs->fw6.counters.bcnt = args->bcnt_cnt;
+ 
+diff --git a/iptables/tests/shell/testcases/ip6tables/0003-list-rules_0 b/iptables/tests/shell/testcases/ip6tables/0003-list-rules_0
+index c98bdd6e501aa..09e39927ef390 100755
+--- a/iptables/tests/shell/testcases/ip6tables/0003-list-rules_0
++++ b/iptables/tests/shell/testcases/ip6tables/0003-list-rules_0
+@@ -3,7 +3,7 @@
+ set -e
+ 
+ $XT_MULTI ip6tables -N foo
+-$XT_MULTI ip6tables -A FORWARD -i eth23 -o eth42 -j ACCEPT
++$XT_MULTI ip6tables -A FORWARD -i eth23 -o eth42 -j ACCEPT -c 23 42
+ $XT_MULTI ip6tables -A FORWARD -i eth42 -o eth23 -g foo
+ $XT_MULTI ip6tables -t nat -A OUTPUT -o eth123 -m mark --mark 0x42 -j ACCEPT
+ 
+@@ -20,7 +20,7 @@ EXPECT='-P INPUT ACCEPT -c 0 0
+ -P FORWARD ACCEPT -c 0 0
+ -P OUTPUT ACCEPT -c 0 0
+ -N foo
+--A FORWARD -i eth23 -o eth42 -c 0 0 -j ACCEPT
++-A FORWARD -i eth23 -o eth42 -c 23 42 -j ACCEPT
+ -A FORWARD -i eth42 -o eth23 -c 0 0 -g foo'
+ 
+ diff -u -Z <(echo -e "$EXPECT") <($XT_MULTI ip6tables -v -S)
+@@ -32,7 +32,7 @@ EXPECT='-P FORWARD ACCEPT
+ diff -u -Z <(echo -e "$EXPECT") <($XT_MULTI ip6tables -S FORWARD)
+ 
+ EXPECT='-P FORWARD ACCEPT -c 0 0
+--A FORWARD -i eth23 -o eth42 -c 0 0 -j ACCEPT
++-A FORWARD -i eth23 -o eth42 -c 23 42 -j ACCEPT
+ -A FORWARD -i eth42 -o eth23 -c 0 0 -g foo'
+ 
+ diff -u -Z <(echo -e "$EXPECT") <($XT_MULTI ip6tables -v -S FORWARD)
+diff --git a/iptables/tests/shell/testcases/iptables/0003-list-rules_0 b/iptables/tests/shell/testcases/iptables/0003-list-rules_0
+index d335d44257a49..d07bd151be76b 100755
+--- a/iptables/tests/shell/testcases/iptables/0003-list-rules_0
++++ b/iptables/tests/shell/testcases/iptables/0003-list-rules_0
+@@ -3,7 +3,7 @@
+ set -e
+ 
+ $XT_MULTI iptables -N foo
+-$XT_MULTI iptables -A FORWARD -i eth23 -o eth42 -j ACCEPT
++$XT_MULTI iptables -A FORWARD -i eth23 -o eth42 -j ACCEPT -c 23 42
+ $XT_MULTI iptables -A FORWARD -i eth42 -o eth23 -g foo
+ $XT_MULTI iptables -t nat -A OUTPUT -o eth123 -m mark --mark 0x42 -j ACCEPT
+ 
+@@ -20,7 +20,7 @@ EXPECT='-P INPUT ACCEPT -c 0 0
+ -P FORWARD ACCEPT -c 0 0
+ -P OUTPUT ACCEPT -c 0 0
+ -N foo
+--A FORWARD -i eth23 -o eth42 -c 0 0 -j ACCEPT
++-A FORWARD -i eth23 -o eth42 -c 23 42 -j ACCEPT
+ -A FORWARD -i eth42 -o eth23 -c 0 0 -g foo'
+ 
+ diff -u -Z <(echo -e "$EXPECT") <($XT_MULTI iptables -v -S)
+@@ -32,7 +32,7 @@ EXPECT='-P FORWARD ACCEPT
+ diff -u -Z <(echo -e "$EXPECT") <($XT_MULTI iptables -S FORWARD)
+ 
+ EXPECT='-P FORWARD ACCEPT -c 0 0
+--A FORWARD -i eth23 -o eth42 -c 0 0 -j ACCEPT
++-A FORWARD -i eth23 -o eth42 -c 23 42 -j ACCEPT
+ -A FORWARD -i eth42 -o eth23 -c 0 0 -g foo'
+ 
+ diff -u -Z <(echo -e "$EXPECT") <($XT_MULTI iptables -v -S FORWARD)
+-- 
+2.40.0
+

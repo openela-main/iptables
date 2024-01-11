@@ -1,0 +1,74 @@
+From 0d08235024c951cf0f563562cbeaee82d8c7321c Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Thu, 1 Dec 2022 15:16:43 +0100
+Subject: [PATCH] xtables-translate: Fix for interfaces with asterisk
+ mid-string
+
+For nft, asterisk is special at end of the interface name only. Escaping
+it mid-string makes the escape char part of the interface name, so avoid
+this.
+
+In the test case, also drop the ticks around interface names in
+*-translate command - since there's no shell involved which would eat
+them, they become part of the interface name.
+
+Fixes: e179e87a1179e ("xtables-translate: Fix for interface name corner-cases")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit ba1c0fe89eb56f8bf25f9165f2e5dc366ea0118c)
+
+Conflicts:
+	extensions/generic.txlate
+-> Adjusted to missing commit 09d63e818ae0d
+   ("extensions: change expected output for new format").
+---
+ extensions/generic.txlate    | 14 +++++++-------
+ iptables/xtables-translate.c |  4 +++-
+ 2 files changed, 10 insertions(+), 8 deletions(-)
+
+diff --git a/extensions/generic.txlate b/extensions/generic.txlate
+index 44b84e3b23515..0316c1dd3cc2b 100644
+--- a/extensions/generic.txlate
++++ b/extensions/generic.txlate
+@@ -74,17 +74,17 @@ ebtables-translate -I INPUT -p ! Length
+ nft insert rule bridge filter INPUT ether type >= 0x0600 counter
+ 
+ # asterisk is not special in iptables and it is even a valid interface name
+-iptables-translate -A FORWARD -i '*' -o 'eth*foo'
+-nft add rule ip filter FORWARD iifname "\*" oifname "eth\*foo" counter
++iptables-translate -A FORWARD -i * -o eth*foo
++nft add rule ip filter FORWARD iifname "\*" oifname "eth*foo" counter
+ 
+-# escape all asterisks but translate only the first plus character
+-iptables-translate -A FORWARD -i 'eth*foo*+' -o 'eth++'
+-nft add rule ip filter FORWARD iifname "eth\*foo\**" oifname "eth+*" counter
++# escape only suffix asterisk and translate only the last plus character
++iptables-translate -A FORWARD -i eth*foo*+ -o eth++
++nft add rule ip filter FORWARD iifname "eth*foo**" oifname "eth+*" counter
+ 
+ # skip for always matching interface names
+-iptables-translate -A FORWARD -i '+'
++iptables-translate -A FORWARD -i +
+ nft add rule ip filter FORWARD counter
+ 
+ # match against invalid interface name to simulate never matching rule
+-iptables-translate -A FORWARD ! -i '+'
++iptables-translate -A FORWARD ! -i +
+ nft add rule ip filter FORWARD iifname "INVAL/D" counter
+diff --git a/iptables/xtables-translate.c b/iptables/xtables-translate.c
+index aeae33c38512a..5f5e314dc33d0 100644
+--- a/iptables/xtables-translate.c
++++ b/iptables/xtables-translate.c
+@@ -41,7 +41,9 @@ void xlate_ifname(struct xt_xlate *xl, const char *nftmeta, const char *ifname,
+ 	for (i = 0, j = 0; i < ifaclen + 1; i++, j++) {
+ 		switch (ifname[i]) {
+ 		case '*':
+-			iface[j++] = '\\';
++			/* asterisk is non-special mid-string */
++			if (i == ifaclen - 1)
++				iface[j++] = '\\';
+ 			/* fall through */
+ 		default:
+ 			iface[j] = ifname[i];
+-- 
+2.40.0
+

@@ -1,0 +1,36 @@
+From f31607eafcbf8b4aca4f51bbd6dac33817a1498d Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Fri, 15 Jan 2021 21:58:48 +0100
+Subject: [PATCH] tests/shell: Fix nft-only/0009-needless-bitwise_0
+
+For whatever reason, stored expected output contains false handles. To
+overcome this, filter the rule data lines from both expected and stored
+output before comparing.
+
+Fixes: 81a2e12851283 ("tests/shell: Add test for bitwise avoidance fixes")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 0f7ea0390b33654c9a91015966f518b98356e786)
+---
+ .../shell/testcases/nft-only/0009-needless-bitwise_0     | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/iptables/tests/shell/testcases/nft-only/0009-needless-bitwise_0 b/iptables/tests/shell/testcases/nft-only/0009-needless-bitwise_0
+index 41d765e537312..41588a10863ec 100755
+--- a/iptables/tests/shell/testcases/nft-only/0009-needless-bitwise_0
++++ b/iptables/tests/shell/testcases/nft-only/0009-needless-bitwise_0
+@@ -336,4 +336,11 @@ bridge filter OUTPUT 10 9
+   [ counter pkts 0 bytes 0 ]
+ "
+ 
+-diff -u -Z <(echo "$EXPECT") <(nft --debug=netlink list ruleset | awk '/^table/{exit} {print}')
++# print nothing but:
++# - lines with bytecode (starting with '  [')
++# - empty lines (so printed diff is not a complete mess)
++filter() {
++	awk '/^(  \[|$)/{print}'
++}
++
++diff -u -Z <(filter <<< "$EXPECT") <(nft --debug=netlink list ruleset | filter)
+-- 
+2.40.0
+

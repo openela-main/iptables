@@ -1,0 +1,34 @@
+From e34d23b5a95801b93550a451b0da0b28221acfd5 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Wed, 19 Jul 2023 14:58:11 +0200
+Subject: [PATCH] tests: shell: Sanitize nft-only/0009-needless-bitwise_0
+
+Some versions of awk (gawk-4.2.1-4.el8 in particular) also print the
+non-debug ruleset listing's empty lines, causing the diff to fail. Catch
+this by exiting upon seeing the first table heading. For the sake of
+comparing bytecode, the actual ruleset listing is not interesting,
+anyway.
+
+Fixes: 0f7ea0390b336 ("tests/shell: Fix nft-only/0009-needless-bitwise_0")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 2746726e03d9017d4c940a247590f8d5c5d5a73e)
+---
+ iptables/tests/shell/testcases/nft-only/0009-needless-bitwise_0 | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/iptables/tests/shell/testcases/nft-only/0009-needless-bitwise_0 b/iptables/tests/shell/testcases/nft-only/0009-needless-bitwise_0
+index 41588a10863ec..34802cc26aad4 100755
+--- a/iptables/tests/shell/testcases/nft-only/0009-needless-bitwise_0
++++ b/iptables/tests/shell/testcases/nft-only/0009-needless-bitwise_0
+@@ -340,7 +340,7 @@ bridge filter OUTPUT 10 9
+ # - lines with bytecode (starting with '  [')
+ # - empty lines (so printed diff is not a complete mess)
+ filter() {
+-	awk '/^(  \[|$)/{print}'
++	awk '/^table /{exit} /^(  \[|$)/{print}'
+ }
+ 
+ diff -u -Z <(filter <<< "$EXPECT") <(nft --debug=netlink list ruleset | filter)
+-- 
+2.40.0
+

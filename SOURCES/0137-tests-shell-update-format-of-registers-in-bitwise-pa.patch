@@ -1,0 +1,67 @@
+From 71f3a4741df9db345679f32f5829ce3c4b83031d Mon Sep 17 00:00:00 2001
+From: Pablo Neira Ayuso <pablo@netfilter.org>
+Date: Mon, 16 Nov 2020 10:37:41 +0100
+Subject: [PATCH] tests: shell: update format of registers in bitwise payloads.
+
+libnftnl has been changed to bring the format of registers in bitwise
+dumps in line with those in other types of expression.  Update the
+expected output of Python test-cases.
+
+Signed-off-by: Pablo Neira Ayuso <pablo@netfilter.org>
+(cherry picked from commit 83ee6e179829461572be6583ce6e83f68e636eb6)
+---
+ .../shell/testcases/nft-only/0009-needless-bitwise_0   | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/iptables/tests/shell/testcases/nft-only/0009-needless-bitwise_0 b/iptables/tests/shell/testcases/nft-only/0009-needless-bitwise_0
+index c5c6e706a1029..41d765e537312 100755
+--- a/iptables/tests/shell/testcases/nft-only/0009-needless-bitwise_0
++++ b/iptables/tests/shell/testcases/nft-only/0009-needless-bitwise_0
+@@ -64,7 +64,7 @@ ip filter OUTPUT 5 4
+ 
+ ip filter OUTPUT 6 5
+   [ payload load 4b @ network header + 16 => reg 1 ]
+-  [ bitwise reg 1 = (reg=1 & 0xfcffffff ) ^ 0x00000000 ]
++  [ bitwise reg 1 = ( reg 1 & 0xfcffffff ) ^ 0x00000000 ]
+   [ cmp eq reg 1 0x0002010a ]
+   [ counter pkts 0 bytes 0 ]
+ 
+@@ -98,7 +98,7 @@ ip6 filter OUTPUT 5 4
+ 
+ ip6 filter OUTPUT 6 5
+   [ payload load 16b @ network header + 24 => reg 1 ]
+-  [ bitwise reg 1 = (reg=1 & 0xffffffff 0xffffffff 0xffffffff 0xf0ffffff ) ^ 0x00000000 0x00000000 0x00000000 0x00000000 ]
++  [ bitwise reg 1 = ( reg 1 & 0xffffffff 0xffffffff 0xffffffff 0xf0ffffff ) ^ 0x00000000 0x00000000 0x00000000 0x00000000 ]
+   [ cmp eq reg 1 0xffc0edfe 0x020100ee 0x06050403 0x00090807 ]
+   [ counter pkts 0 bytes 0 ]
+ 
+@@ -175,7 +175,7 @@ arp filter OUTPUT 5 4
+   [ payload load 1b @ network header + 5 => reg 1 ]
+   [ cmp eq reg 1 0x00000004 ]
+   [ payload load 4b @ network header + 24 => reg 1 ]
+-  [ bitwise reg 1 = (reg=1 & 0xfcffffff ) ^ 0x00000000 ]
++  [ bitwise reg 1 = ( reg 1 & 0xfcffffff ) ^ 0x00000000 ]
+   [ cmp eq reg 1 0x0002010a ]
+   [ counter pkts 0 bytes 0 ]
+ 
+@@ -240,7 +240,7 @@ arp filter OUTPUT 11 10
+   [ payload load 1b @ network header + 5 => reg 1 ]
+   [ cmp eq reg 1 0x00000004 ]
+   [ payload load 6b @ network header + 18 => reg 1 ]
+-  [ bitwise reg 1 = (reg=1 & 0xffffffff 0x0000f0ff ) ^ 0x00000000 0x00000000 ]
++  [ bitwise reg 1 = ( reg 1 & 0xffffffff 0x0000f0ff ) ^ 0x00000000 0x00000000 ]
+   [ cmp eq reg 1 0xc000edfe 0x0000e0ff ]
+   [ counter pkts 0 bytes 0 ]
+ 
+@@ -306,7 +306,7 @@ bridge filter OUTPUT 4
+ 
+ bridge filter OUTPUT 5 4
+   [ payload load 6b @ link header + 0 => reg 1 ]
+-  [ bitwise reg 1 = (reg=1 & 0xffffffff 0x0000f0ff ) ^ 0x00000000 0x00000000 ]
++  [ bitwise reg 1 = ( reg 1 & 0xffffffff 0x0000f0ff ) ^ 0x00000000 0x00000000 ]
+   [ cmp eq reg 1 0xc000edfe 0x0000e0ff ]
+   [ counter pkts 0 bytes 0 ]
+ 
+-- 
+2.40.0
+

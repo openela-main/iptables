@@ -1,0 +1,30 @@
+From 13abbdd7789da8616a903b5b8dc5ff69fb2af2c7 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Fri, 10 Jul 2020 21:12:34 +0200
+Subject: [PATCH] nft: Drop pointless nft_xt_builtin_init() call
+
+When renaming a chain, either everything is in place already or the
+command will bail anyway. So just drop this superfluous call.
+
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 7a700c47fe121c65c550ab24de3284abbb1e82f8)
+---
+ iptables/nft.c | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/iptables/nft.c b/iptables/nft.c
+index 0c5a74fc232c6..e795d4ae6d241 100644
+--- a/iptables/nft.c
++++ b/iptables/nft.c
+@@ -1934,8 +1934,6 @@ int nft_chain_user_rename(struct nft_handle *h,const char *chain,
+ 		return 0;
+ 	}
+ 
+-	nft_xt_builtin_init(h, table);
+-
+ 	/* Config load changed errno. Ensure genuine info for our callers. */
+ 	errno = 0;
+ 
+-- 
+2.40.0
+

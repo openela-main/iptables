@@ -1,0 +1,104 @@
+From 4f52c310cf3854a64ef9a518c223e0581ec9a308 Mon Sep 17 00:00:00 2001
+From: Florian Westphal <fw@strlen.de>
+Date: Wed, 24 Feb 2021 11:08:02 +0100
+Subject: [PATCH] iptables-nft: fix -Z option
+
+it zeroes the rule counters, so it needs fully populated cache.
+Add a test case to cover this.
+
+Fixes: 9d07514ac5c7a ("nft: calculate cache requirements from list of commands")
+Signed-off-by: Florian Westphal <fw@strlen.de>
+Acked-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 5f1fcacebf9b4529950b6e3f88327049a0ea7cd2)
+---
+ iptables/nft-cmd.c                            |  2 +-
+ .../testcases/iptables/0007-zero-counters_0   | 64 +++++++++++++++++++
+ 2 files changed, 65 insertions(+), 1 deletion(-)
+ create mode 100755 iptables/tests/shell/testcases/iptables/0007-zero-counters_0
+
+diff --git a/iptables/nft-cmd.c b/iptables/nft-cmd.c
+index 9c0901e78703a..ed53c061edc6f 100644
+--- a/iptables/nft-cmd.c
++++ b/iptables/nft-cmd.c
+@@ -185,7 +185,7 @@ int nft_cmd_chain_zero_counters(struct nft_handle *h, const char *chain,
+ 	if (!cmd)
+ 		return 0;
+ 
+-	nft_cache_level_set(h, NFT_CL_CHAINS, cmd);
++	nft_cache_level_set(h, NFT_CL_RULES, cmd);
+ 
+ 	return 1;
+ }
+diff --git a/iptables/tests/shell/testcases/iptables/0007-zero-counters_0 b/iptables/tests/shell/testcases/iptables/0007-zero-counters_0
+new file mode 100755
+index 0000000000000..36da1907e3b22
+--- /dev/null
++++ b/iptables/tests/shell/testcases/iptables/0007-zero-counters_0
+@@ -0,0 +1,64 @@
++#!/bin/bash
++
++RC=0
++COUNTR=$RANDOM$RANDOM
++
++$XT_MULTI iptables-restore -c <<EOF
++*filter
++:INPUT ACCEPT [1:23]
++:FOO - [0:0]
++[12:345] -A INPUT -i lo -p icmp -m comment --comment "$COUNTR"
++[22:123] -A FOO -m comment --comment one
++[44:123] -A FOO -m comment --comment two
++COMMIT
++EOF
++EXPECT="*filter
++:INPUT ACCEPT [0:0]
++:FORWARD ACCEPT [0:0]
++:OUTPUT ACCEPT [0:0]
++:FOO - [0:0]
++[0:0] -A INPUT -i lo -p icmp -m comment --comment "$COUNTR"
++[0:0] -A FOO -m comment --comment one
++[0:0] -A FOO -m comment --comment two
++COMMIT"
++
++COUNTER=$($XT_MULTI iptables-save -c |grep "comment $COUNTR"| cut -f 1 -d " ")
++if [ $COUNTER != "[12:345]" ]; then
++	echo "Counter $COUNTER is wrong, expected 12:345"
++	RC=1
++fi
++
++$XT_MULTI iptables -Z FOO
++COUNTER=$($XT_MULTI iptables-save -c |grep "comment $COUNTR"| cut -f 1 -d " ")
++if [ $COUNTER = "[0:0]" ]; then
++	echo "Counter $COUNTER is wrong, should not have been zeroed"
++	RC=1
++fi
++
++for c in one two; do
++	COUNTER=$($XT_MULTI iptables-save -c |grep "comment $c"| cut -f 1 -d " ")
++	if [ $COUNTER != "[0:0]" ]; then
++		echo "Counter $COUNTER is wrong, should have been zeroed at rule $c"
++		RC=1
++	fi
++done
++
++$XT_MULTI iptables -Z
++COUNTER=$($XT_MULTI iptables-save -c |grep "comment $COUNTR"| cut -f 1 -d " ")
++
++if [ $COUNTER != "[0:0]" ]; then
++	echo "Counter $COUNTER is wrong, expected 0:0 after -Z"
++	RC=1
++fi
++
++diff -u -Z <(echo -e "$EXPECT") <($XT_MULTI iptables-save -c | grep -v '^#')
++if [ $? -ne 0 ]; then
++	echo "Diff error: counters were not zeroed"
++	RC=1
++fi
++
++$XT_MULTI iptables -D INPUT -i lo -p icmp -m comment --comment "$COUNTR"
++$XT_MULTI iptables -D FOO -m comment --comment one
++$XT_MULTI iptables -D FOO -m comment --comment two
++$XT_MULTI iptables -X FOO
++exit $RC
+-- 
+2.40.0
+

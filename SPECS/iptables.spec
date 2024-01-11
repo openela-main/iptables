@@ -4,20 +4,13 @@
 # service legacy actions (RHBZ#748134)
 %global legacy_actions %{_libexecdir}/initscripts/legacy-actions
 
-# boostrap mode to assist in libip{4,6}tc SONAME bump
-%global bootstrap 1
-
-%if 0%{?bootstrap}
-%global version_old 1.8.2
-%global iptc_so_ver_old 0
-%endif
 %global iptc_so_ver 2
 
 Name: iptables
 Summary: Tools for managing Linux kernel packet filtering capabilities
 URL: http://www.netfilter.org/projects/iptables
-Version: 1.8.4
-Release: 24%{?dist}.2
+Version: 1.8.5
+Release: 10%{?dist}
 Source: %{url}/files/%{name}-%{version}.tar.bz2
 Source1: iptables.init
 Source2: iptables-config
@@ -29,91 +22,153 @@ Source7: arptables-helper
 Source8: ebtables.systemd
 Source9: ebtables.service
 Source10: ebtables-config
-%if 0%{?bootstrap}
-Source11: %{url}/files/%{name}-%{version_old}.tar.bz2
-Source12: 0003-extensions-format-security-fixes-in-libip-6-t_icmp.patch
-%endif
+Source11: iptables-test.stderr.expect
 
-Patch01: 0001-iptables-apply-Use-mktemp-instead-of-tempfile.patch
-Patch02: 0002-xtables-restore-Fix-parser-feed-from-line-buffer.patch
-Patch03: 0003-xtables-restore-Avoid-access-of-uninitialized-data.patch
-Patch04: 0004-extensions-time-Avoid-undefined-shift.patch
-Patch05: 0005-extensions-cluster-Avoid-undefined-shift.patch
-Patch06: 0006-libxtables-Avoid-buffer-overrun-in-xtables_compatibl.patch
-Patch07: 0007-xtables-translate-Guard-strcpy-call-in-xlate_ifname.patch
-Patch08: 0008-extensions-among-Check-call-to-fstat.patch
-Patch09: 0009-uapi-netfilter-Avoid-undefined-left-shift-in-xt_sctp.patch
-Patch10: 0010-xtables-translate-Fix-for-interface-name-corner-case.patch
-Patch11: 0011-xtables-translate-Fix-for-iface.patch
-Patch12: 0012-tests-shell-Fix-skip-checks-with-host-mode.patch
-Patch13: 0013-xtables-restore-fix-for-noflush-and-empty-lines.patch
-Patch14: 0014-iptables-test.py-Fix-host-mode.patch
-Patch15: 0015-xtables-Review-nft_init.patch
-Patch16: 0016-nft-cache-Fix-nft_release_cache-under-stress.patch
-Patch17: 0017-nft-cache-Fix-iptables-save-segfault-under-stress.patch
-Patch18: 0018-ebtables-among-Support-mixed-MAC-and-MAC-IP-entries.patch
-Patch19: 0019-xtables-Align-effect-of-4-6-options-with-legacy.patch
-Patch20: 0020-xtables-Drop-4-and-6-support-from-xtables-save-resto.patch
-Patch21: 0021-nfnl_osf-Fix-broken-conversion-to-nfnl_query.patch
-Patch22: 0022-nfnl_osf-Improve-error-handling.patch
-Patch23: 0023-nft-cache-Reset-genid-when-rebuilding-cache.patch
-Patch24: 0024-nft-Fix-for-F-in-iptables-dumps.patch
-Patch25: 0025-tests-shell-Test-F-in-dump-files.patch
-Patch26: 0026-nft-Make-batch_add_chain-return-the-added-batch-obje.patch
-Patch27: 0027-nft-Fix-error-reporting-for-refreshed-transactions.patch
-Patch28: 0028-nft-Fix-for-concurrent-noflush-restore-calls.patch
-Patch29: 0029-tests-shell-Improve-concurrent-noflush-restore-test-.patch
-Patch30: 0030-nft-cache-Make-nft_rebuild_cache-respect-fake-cache.patch
-Patch31: 0031-nft-Fix-for-broken-address-mask-match-detection.patch
-Patch32: 0032-nft-Optimize-class-based-IP-prefix-matches.patch
-Patch33: 0033-ebtables-Optimize-masked-MAC-address-matches.patch
-Patch34: 0034-tests-shell-Add-test-for-bitwise-avoidance-fixes.patch
-Patch35: 0035-libxtables-Make-sure-extensions-register-in-revision.patch
-Patch36: 0036-libxtables-Simplify-pending-extension-registration.patch
-Patch37: 0037-libxtables-Register-multiple-extensions-in-ascending.patch
-Patch38: 0038-tests-shell-Test-for-fixed-extension-registration.patch
-Patch39: 0039-extensions-libipt_icmp-Fix-translation-of-type-any.patch
-Patch40: 0040-extensions-libxt_CT-add-translation-for-NOTRACK.patch
-Patch41: 0041-nft-Fix-command-name-in-ip6tables-error-message.patch
-Patch42: 0042-tests-shell-Merge-and-extend-return-codes-test.patch
-Patch43: 0043-extensions-dccp-Fix-for-DCCP-type-INVALID.patch
-Patch44: 0044-xtables-monitor-Fix-ip6tables-rule-printing.patch
-Patch45: 0045-xtables-monitor-fix-rule-printing.patch
-Patch46: 0046-xtables-monitor-fix-packet-family-protocol.patch
-Patch47: 0047-xtables-monitor-print-packet-first.patch
-Patch48: 0048-xtables-monitor.patch
-Patch49: 0049-nft-Fix-bitwise-expression-avoidance-detection.patch
-Patch50: 0050-xtables-translate-Fix-translation-of-odd-netmasks.patch
-Patch51: 0051-Eliminate-inet_aton-and-inet_ntoa.patch
-Patch52: 0052-xtables-arp-Don-t-use-ARPT_INV_.patch
-Patch53: 0053-nft-arp-Make-use-of-ipv4_addr_to_string.patch
-Patch54: 0054-extensions-SECMARK-Implement-revision-1.patch
-Patch55: 0055-extensions-sctp-Fix-nftables-translation.patch
-Patch56: 0056-extensions-sctp-Translate-chunk-types-option.patch
-Patch57: 0057-extensions-SECMARK-Use-a-better-context-in-test-case.patch
-Patch58: 0058-nft-cache-Retry-if-kernel-returns-EINTR.patch
-Patch59: 0059-doc-ebtables-nft.8-Adjust-for-missing-atomic-options.patch
-Patch60: 0060-ebtables-Dump-atomic-waste.patch
-Patch61: 0061-extensions-hashlimit-Fix-tests-with-HZ-100.patch
-Patch62: 0062-extensions-hashlimit-Fix-tests-with-HZ-1000.patch
-Patch63: 0063-nft-Simplify-immediate-parsing.patch
-Patch64: 0064-nft-Speed-up-immediate-parsing.patch
-Patch65: 0065-xshared-Prefer-xtables_chain_protos-lookup-over-getp.patch
-Patch66: 0066-xshared-Merge-and-share-parse_chain.patch
-Patch67: 0067-nft-Reject-standard-targets-as-chain-names-when-rest.patch
-Patch68: 0068-libxtables-Implement-notargets-hash-table.patch
-Patch69: 0069-libxtables-Boost-rule-target-checks-by-announcing-ch.patch
-Patch70: 0070-Use-proto_to_name-from-xshared-in-more-places.patch
-Patch71: 0071-libxtables-Register-only-the-highest-revision-extens.patch
-Patch72: 0072-xshared-Fix-response-to-unprivileged-users.patch
-Patch73: 0073-Improve-error-messages-for-unsupported-extensions.patch
-Patch74: 0074-nft-Fix-EPERM-handling-for-extensions-without-rev-0.patch
-Patch75: 0075-tests-shell-Check-overhead-in-iptables-save-and-rest.patch
-Patch76: 0076-libxtables-Fix-unsupported-extension-warning-corner-.patch
-Patch77: 0077-nft-shared-Introduce-__get_cmp_data.patch
-Patch78: 0078-ebtables-Support-p-Length.patch
-Patch79: 0079-libxtables-Revert-change-to-struct-xtables_pprot.patch
-patch80: 0080-nft-un-break-among-match-with-concatenation.patch
+Patch001: 0001-build-resolve-iptables-apply-not-getting-installed.patch
+Patch002: 0002-xtables-translate-don-t-fail-if-help-was-requested.patch
+Patch003: 0003-xtables-translate-Use-proper-clear_cs-function.patch
+Patch004: 0004-libxtables-compiler-warning-fixes-for-NO_SHARED_LIBS.patch
+Patch005: 0005-extensions-libxt_conntrack-provide-translation-for-D.patch
+Patch006: 0006-nft-Drop-pointless-nft_xt_builtin_init-call.patch
+Patch007: 0007-nft-Fix-command-name-in-ip6tables-error-message.patch
+Patch008: 0008-tests-shell-Merge-and-extend-return-codes-test.patch
+Patch009: 0009-xtables-monitor-Fix-ip6tables-rule-printing.patch
+Patch010: 0010-nft-cache-Check-consistency-with-NFT_CL_FAKE-too.patch
+Patch011: 0011-nft-Fix-for-broken-address-mask-match-detection.patch
+Patch012: 0012-extensions-libipt_icmp-Fix-translation-of-type-any.patch
+Patch013: 0013-libxtables-Make-sure-extensions-register-in-revision.patch
+Patch014: 0014-libxtables-Simplify-pending-extension-registration.patch
+Patch015: 0015-libxtables-Register-multiple-extensions-in-ascending.patch
+Patch016: 0016-nft-Make-batch_add_chain-return-the-added-batch-obje.patch
+Patch017: 0017-nft-Fix-error-reporting-for-refreshed-transactions.patch
+Patch018: 0018-nft-Fix-for-concurrent-noflush-restore-calls.patch
+Patch019: 0019-tests-shell-Improve-concurrent-noflush-restore-test-.patch
+Patch020: 0020-nft-Optimize-class-based-IP-prefix-matches.patch
+Patch021: 0021-ebtables-Optimize-masked-MAC-address-matches.patch
+Patch022: 0022-tests-shell-Add-test-for-bitwise-avoidance-fixes.patch
+Patch023: 0023-ebtables-Fix-for-broken-chain-renaming.patch
+Patch024: 0024-xtables-arp-Don-t-use-ARPT_INV_.patch
+Patch025: 0025-xshared-Merge-some-command-option-related-code.patch
+Patch026: 0026-tests-shell-Test-for-fixed-extension-registration.patch
+Patch027: 0027-extensions-dccp-Fix-for-DCCP-type-INVALID.patch
+Patch028: 0028-xtables-monitor-fix-rule-printing.patch
+Patch029: 0029-xtables-monitor-fix-packet-family-protocol.patch
+Patch030: 0030-xtables-monitor-print-packet-first.patch
+Patch031: 0031-xtables-monitor.patch
+Patch032: 0032-nft-Fix-selective-chain-compatibility-checks.patch
+Patch033: 0033-iptables-nft-fix-Z-option.patch
+Patch034: 0034-nft-Fix-bitwise-expression-avoidance-detection.patch
+Patch035: 0035-xtables-translate-Fix-translation-of-odd-netmasks.patch
+Patch036: 0036-extensions-libxt_conntrack-use-bitops-for-state-nega.patch
+Patch037: 0037-Eliminate-inet_aton-and-inet_ntoa.patch
+Patch038: 0038-nft-arp-Make-use-of-ipv4_addr_to_string.patch
+Patch039: 0039-extensions-SECMARK-Implement-revision-1.patch
+Patch040: 0040-Use-proto_to_name-from-xshared-in-more-places.patch
+Patch041: 0041-extensions-sctp-Fix-nftables-translation.patch
+Patch042: 0042-extensions-sctp-Translate-chunk-types-option.patch
+Patch043: 0043-libxtables-Drop-leftover-variable-in-xtables_numeric.patch
+Patch044: 0044-extensions-libebt_ip6-Drop-unused-variables.patch
+Patch045: 0045-libxtables-Fix-memleak-in-xtopt_parse_hostmask.patch
+Patch046: 0046-nft-Avoid-memleak-in-error-path-of-nft_cmd_new.patch
+Patch047: 0047-iptables-apply-Drop-unused-variable.patch
+Patch048: 0048-doc-ebtables-nft.8-Adjust-for-missing-atomic-options.patch
+Patch049: 0049-ebtables-Dump-atomic-waste.patch
+Patch050: 0050-nft-Fix-for-non-verbose-check-command.patch
+Patch051: 0051-extensions-hashlimit-Fix-tests-with-HZ-100.patch
+Patch052: 0052-nft-Use-xtables_malloc-in-mnl_err_list_node_add.patch
+Patch053: 0053-extensions-hashlimit-Fix-tests-with-HZ-1000.patch
+Patch054: 0054-xshared-Merge-and-share-parse_chain.patch
+Patch055: 0055-nft-shared-Drop-unused-function-print_proto.patch
+Patch056: 0056-xshared-Make-load_proto-static.patch
+Patch057: 0057-extensions-libxt_NFLOG-fix-nflog-prefix-Python-test-.patch
+Patch058: 0058-extensions-libxt_NFLOG-remove-extra-space-when-savin.patch
+Patch059: 0059-xshared-Fix-response-to-unprivileged-users.patch
+Patch060: 0060-libxtables-Register-only-the-highest-revision-extens.patch
+Patch061: 0061-Improve-error-messages-for-unsupported-extensions.patch
+Patch062: 0062-nft-Simplify-immediate-parsing.patch
+Patch063: 0063-nft-Speed-up-immediate-parsing.patch
+Patch064: 0064-xshared-Prefer-xtables_chain_protos-lookup-over-getp.patch
+Patch065: 0065-libxtables-Fix-for-warning-in-xtables_ipmask_to_nume.patch
+Patch066: 0066-nft-Reject-standard-targets-as-chain-names-when-rest.patch
+Patch067: 0067-libxtables-Implement-notargets-hash-table.patch
+Patch068: 0068-libxtables-Boost-rule-target-checks-by-announcing-ch.patch
+Patch069: 0069-nft-shared-update-context-register-for-bitwise-expre.patch
+Patch070: 0070-extensions-MARK-Drop-extra-newline-at-end-of-help.patch
+Patch071: 0071-extensions-LOG-Document-log-macdecode-in-man-page.patch
+Patch072: 0072-nft-Fix-EPERM-handling-for-extensions-without-rev-0.patch
+Patch073: 0073-tests-shell-Check-overhead-in-iptables-save-and-rest.patch
+Patch074: 0074-iptables-legacy-Drop-redundant-include-of-xtables-mu.patch
+Patch075: 0075-tests-shell-Add-some-more-rules-to-0002-verbose-outp.patch
+Patch076: 0076-extensions-string-Do-not-print-default-to-value.patch
+Patch077: 0077-xtables-monitor-add-missing-spaces-in-printed-str.patch
+Patch078: 0078-libxtables-Fix-unsupported-extension-warning-corner-.patch
+Patch079: 0079-extensions-libxt_conntrack-remove-always-false-condi.patch
+Patch080: 0080-nft-un-break-among-match-with-concatenation.patch
+Patch081: 0081-nft-shared-Introduce-__get_cmp_data.patch
+Patch082: 0082-ebtables-Support-p-Length.patch
+Patch083: 0083-extensions-among-Remove-pointless-fall-through.patch
+Patch084: 0084-extensions-among-Fix-for-use-with-ebtables-restore.patch
+Patch085: 0085-extensions-libebt_stp-Eliminate-duplicate-space-in-o.patch
+Patch086: 0086-extensions-libip6t_dst-Fix-output-for-empty-options.patch
+Patch087: 0087-extensions-TCPOPTSTRIP-Do-not-print-empty-options.patch
+Patch088: 0088-tests-IDLETIMER.t-Fix-syntax-support-for-restore-inp.patch
+Patch089: 0089-tests-libebt_stp.t-Drop-duplicate-whitespace.patch
+Patch090: 0090-tests-shell-Fix-expected-output-for-ip6tables-dst-ma.patch
+Patch091: 0091-libiptc-Fix-for-segfault-when-renaming-a-chain.patch
+Patch092: 0092-extensions-libebt_mark-Fix-xlate-test-case.patch
+Patch093: 0093-extensions-libebt_redirect-Fix-xlate-return-code.patch
+Patch094: 0094-extensions-libipt_ttl-Sanitize-xlate-callback.patch
+Patch095: 0095-extensions-CONNMARK-Fix-xlate-callback.patch
+Patch096: 0096-extensions-MARK-Sanitize-MARK_xlate.patch
+Patch097: 0097-extensions-TCPMSS-Use-xlate-callback-for-IPv6-too.patch
+Patch098: 0098-extensions-TOS-Fix-v1-xlate-callback.patch
+Patch099: 0099-extensions-ecn-Sanitize-xlate-callback.patch
+Patch100: 0100-extensions-libebt_mark-Fix-mark-target-xlate.patch
+Patch101: 0101-extensions-libxt_conntrack-Drop-extra-whitespace-in-.patch
+Patch102: 0102-iptables-restore-Free-handle-with-test-also.patch
+Patch103: 0103-iptables-xml-Free-allocated-chain-strings.patch
+Patch104: 0104-nft-Plug-memleak-in-nft_rule_zero_counters.patch
+Patch105: 0105-xtables-Introduce-xtables_clear_iptables_command_sta.patch
+Patch106: 0106-iptables-Properly-clear-iptables_command_state-objec.patch
+Patch107: 0107-libiptc-Eliminate-garbage-access.patch
+Patch108: 0108-ebtables-Fix-MAC-address-match-translation.patch
+Patch109: 0109-nft-Fix-for-comparing-ifname-matches-against-nft-gen.patch
+Patch110: 0110-nft-Fix-match-generator-for-i.patch
+Patch111: 0111-xtables-translate-Fix-for-interfaces-with-asterisk-m.patch
+Patch112: 0112-Drop-libiptc-linux_stddef.h.patch
+Patch113: 0113-include-Makefile-xtables-version.h-is-generated.patch
+Patch114: 0114-arptables-Check-the-mandatory-ar_pln-match.patch
+Patch115: 0115-gitignore-Ignore-utils-nfsynproxy.patch
+Patch116: 0116-etc-Drop-xtables.conf.patch
+Patch117: 0117-Proper-fix-for-unknown-argument-error-message.patch
+Patch118: 0118-ebtables-Refuse-unselected-targets-options.patch
+Patch119: 0119-extensions-libebt_redirect-Fix-target-translation.patch
+Patch120: 0120-extensions-libebt_redirect-Fix-for-wrong-syntax-in-t.patch
+Patch121: 0121-extensions-libebt_ip-Do-not-use-ip-dscp-for-translat.patch
+Patch122: 0122-extensions-libebt_ip-Translation-has-to-match-on-eth.patch
+Patch123: 0123-nft-restore-Fix-for-deletion-of-new-referenced-rule.patch
+Patch124: 0124-nft-shared-Drop-unused-include.patch
+Patch125: 0125-arptables-Fix-parsing-of-inverted-arp-operation-matc.patch
+Patch126: 0126-arptables-Don-t-omit-standard-matches-if-inverted.patch
+Patch127: 0127-Revert-arptables-Check-the-mandatory-ar_pln-match.patch
+Patch128: 0128-extensions-SECMARK-Use-a-better-context-in-test-case.patch
+Patch129: 0129-tests-xlate-test-Print-errors-to-stderr.patch
+Patch130: 0130-iptables-test-Make-netns-spawning-more-robust.patch
+Patch131: 0131-tests-iptables-test-Print-errors-to-stderr.patch
+Patch132: 0132-tests-xlate-test-Exit-non-zero-on-error.patch
+Patch133: 0133-tests-iptables-test-Exit-non-zero-on-error.patch
+Patch134: 0134-tests-shell-Return-non-zero-on-error.patch
+Patch135: 0135-iptables-test.py-print-with-color-escapes-only-when-.patch
+Patch136: 0136-tests-iptables-test-Fix-conditional-colors-on-stderr.patch
+Patch137: 0137-tests-shell-update-format-of-registers-in-bitwise-pa.patch
+Patch138: 0138-tests-shell-Fix-nft-only-0009-needless-bitwise_0.patch
+Patch139: 0139-tests-shell-Sanitize-nft-only-0009-needless-bitwise_.patch
+Patch140: 0140-iptables-Fix-setting-of-ipv6-counters.patch
+Patch141: 0141-iptables-Fix-handling-of-non-existent-chains.patch
+Patch142: 0142-nft-bridge-pass-context-structure-to-ops-add-to-impr.patch
+Patch143: 0143-nft-Special-casing-for-among-match-in-compare_matche.patch
+Patch144: 0144-nft-Do-not-pass-nft_rule_ctx-to-add_nft_among.patch
+Patch145: 0145-iptables-nft-fix-basechain-policy-configuration.patch
 
 # pf.os: ISC license
 # iptables-apply: Artistic Licence 2.0
@@ -131,7 +186,7 @@ BuildRequires: bison
 BuildRequires: flex
 BuildRequires: gcc
 BuildRequires: pkgconfig(libmnl) >= 1.0
-BuildRequires: pkgconfig(libnftnl) >= 1.1.5-1
+BuildRequires: pkgconfig(libnftnl) >= 1.1.6
 # libpcap-devel for nfbpf_compile
 BuildRequires: libpcap-devel
 BuildRequires:  autoconf
@@ -244,14 +299,7 @@ replacement of the legacy tool.
 
 %prep
 %autosetup -p1
-
-%if 0%{?bootstrap}
-%{__mkdir} -p bootstrap_ver
-pushd bootstrap_ver
-%{__tar} --strip-components=1 -xf %{SOURCE11}
-%{__patch} -p1 <%{SOURCE12}
-popd
-%endif
+cp %{SOURCE11} .
 
 %build
 ./autogen.sh
@@ -266,31 +314,7 @@ rm -f include/linux/types.h
 
 make %{?_smp_mflags} V=1
 
-%if 0%{?bootstrap}
-pushd bootstrap_ver
-./autogen.sh
-CFLAGS="$RPM_OPT_FLAGS -fno-strict-aliasing " \
-%configure --enable-devel --enable-bpf-compiler --with-kernel=/usr --with-kbuild=/usr --with-ksource=/usr
-
-# do not use rpath
-sed -i 's|^hardcode_libdir_flag_spec=.*|hardcode_libdir_flag_spec=""|g' libtool
-sed -i 's|^runpath_var=LD_RUN_PATH|runpath_var=DIE_RPATH_DIE|g' libtool
-
-rm -f include/linux/types.h
-
-make %{?_smp_mflags} V=1
-popd
-%endif
-
 %install
-%if 0%{?bootstrap}
-%make_install -C bootstrap_ver
-find %{buildroot} -xtype f -not \
-	-name 'libip*tc.so.%{iptc_so_ver_old}*' -delete -print
-find %{buildroot} -type l -not \
-	-name 'libip*tc.so.%{iptc_so_ver_old}*' -delete -print
-%endif
-
 make install DESTDIR=%{buildroot} 
 # remove la file(s)
 rm -f %{buildroot}/%{_libdir}/*.la
@@ -442,6 +466,7 @@ done
 %{_sbindir}/iptables-save
 %{_sbindir}/iptables-translate
 %{_sbindir}/ip6tables
+%{_sbindir}/ip6tables-apply
 %{_sbindir}/ip6tables-restore
 %{_sbindir}/ip6tables-restore-translate
 %{_sbindir}/ip6tables-save
@@ -450,10 +475,7 @@ done
 %{_sbindir}/xtables-nft-multi
 %doc %{_mandir}/man8/iptables*
 %doc %{_mandir}/man8/ip6tables*
-%doc %{_mandir}/man8/xtables-monitor*
-%doc %{_mandir}/man8/xtables-nft*
-%doc %{_mandir}/man8/*tables-translate*
-%doc %{_mandir}/man8/*tables-restore-translate*
+%doc %{_mandir}/man8/xtables-*
 %dir %{_libdir}/xtables
 %{_libdir}/xtables/libarpt*
 %{_libdir}/xtables/libebt*
@@ -463,9 +485,6 @@ done
 
 %files libs
 %{_libdir}/libip*tc.so.%{iptc_so_ver}*
-%if 0%{?bootstrap}
-%{_libdir}/libip*tc.so.%{iptc_so_ver_old}*
-%endif
 %{_libdir}/libxtables.so.12*
 
 %files devel
@@ -522,11 +541,38 @@ done
 %doc %{_mandir}/man8/ebtables*.8*
 
 %changelog
-* Fri Aug 25 2023 Phil Sutter <psutter@redhat.com> - 1.8.4-24.2
-- nft: un-break among match with concatenation
+* Fri Sep 08 2023 Phil Sutter <psutter@redhat.com> - 1.8.5-10
+- Bump NVR to fix for wrong build tag
 
-* Thu Aug 24 2023 Phil Sutter <psutter@redhat.com> - 1.8.4-24.1
-- libxtables: Revert change to struct xtables_pprot
+* Wed Sep 06 2023 Phil Sutter <psutter@redhat.com> - 1.8.5-9
+- iptables-nft: fix basechain policy configuration
+
+* Fri Jul 28 2023 Phil Sutter <psutter@redhat.com> - 1.8.5-8
+- Update fixes from upstream once more
+
+* Wed Jul 19 2023 Phil Sutter <psutter@redhat.com> - 1.8.5-7
+- Fix shell test-case for older gawk version
+
+* Tue Jul 18 2023 Phil Sutter <psutter@redhat.com> - 1.8.5-6
+- Fix shell testcase for rebased libnftnl package
+
+* Tue Jul 18 2023 Phil Sutter <psutter@redhat.com> - 1.8.5-5
+- Missed to copy expected results file to destination.
+
+* Sat Jul 15 2023 Phil Sutter <psutter@redhat.com> - 1.8.5-4
+- Bump release for CI.
+
+* Tue Jul 04 2023 Phil Sutter <psutter@redhat.com> - 1.8.5-3
+- Add expected test results
+- Prepare testsuites for expected results
+
+* Wed Jun 28 2023 Phil Sutter <psutter@redhat.com> - 1.8.5-2
+- libnftnl package was rebased, depending on 1.1.6 is fine
+
+* Wed May 10 2023 Phil Sutter <psutter@redhat.com> - 1.8.5-1
+- Rebase to version 1.8.5 plus upstream-indicated fixes
+- Fix for duplicate files in RPM due to imprecise globbing
+- Drop bootstrap code again
 
 * Wed Nov 23 2022 Phil Sutter <psutter@redhat.com> - 1.8.4-24
 - ebtables: Support '-p Length'

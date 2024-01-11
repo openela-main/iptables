@@ -1,4 +1,4 @@
-From 3b3ed351fd2353bf20a7a7ca9be30539bc53b63c Mon Sep 17 00:00:00 2001
+From 2fd494ffd99924931206c93d5c6d2806df1718ef Mon Sep 17 00:00:00 2001
 From: Florian Westphal <fw@strlen.de>
 Date: Thu, 22 Sep 2022 13:33:50 +0200
 Subject: [PATCH] nft: un-break among match with concatenation
@@ -941,10 +941,10 @@ index 66dceee0ae307..e94d1fa554cb2 100644
 +
  #endif /* _LINUX_NF_TABLES_H */
 diff --git a/iptables/nft.c b/iptables/nft.c
-index 9839e8c683708..5c9d7b31c2565 100644
+index c130369f78348..0ec7679d25289 100644
 --- a/iptables/nft.c
 +++ b/iptables/nft.c
-@@ -1068,7 +1068,7 @@ static int __add_nft_among(struct nft_handle *h, const char *table,
+@@ -1086,7 +1086,7 @@ static int __add_nft_among(struct nft_handle *h, const char *table,
  		type = type << CONCAT_TYPE_BITS | NFT_DATATYPE_IPADDR;
  		len += sizeof(struct in_addr) + NETLINK_ALIGN - 1;
  		len &= ~(NETLINK_ALIGN - 1);
@@ -954,5 +954,5 @@ index 9839e8c683708..5c9d7b31c2565 100644
  
  	s = add_anon_set(h, table, flags, type, len, cnt);
 -- 
-2.41.0
+2.40.0
 

@@ -1,0 +1,41 @@
+From f6915482a365373c5892752f87086740b84fe2d3 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Tue, 15 Mar 2022 12:17:25 +0100
+Subject: [PATCH] libxtables: Fix for warning in xtables_ipmask_to_numeric
+
+Gcc complains:
+
+| xtables.c: In function 'xtables_ipmask_to_numeric':
+| xtables.c:1491:34: warning: '__builtin___sprintf_chk' may write a terminating nul past the end of the destination [-Wformat-overflow=]
+|  1491 |                 sprintf(buf, "/%s", xtables_ipaddr_to_numeric(mask));
+|       |                                  ^
+
+Indeed, xtables_ipaddr_to_numeric() returns a pointer to a 20 byte
+buffer and xtables_ipmask_to_numeric() writes its content into a buffer
+of same size at offset 1. Yet length of returned string is deterministic
+as it is an IPv4 address. So shrink it to the minimum of 16 bytes which
+eliminates the warning as well.
+
+Fixes: a96166c24eaac ("libxtables: add xtables_ip[6]mask_to_cidr")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 0c8e253595bd80e4ddd73230d079e33cd5420b32)
+---
+ libxtables/xtables.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/libxtables/xtables.c b/libxtables/xtables.c
+index cb380ad61ccb5..2e6c68292f16a 100644
+--- a/libxtables/xtables.c
++++ b/libxtables/xtables.c
+@@ -1389,7 +1389,7 @@ void xtables_param_act(unsigned int status, const char *p1, ...)
+ 
+ const char *xtables_ipaddr_to_numeric(const struct in_addr *addrp)
+ {
+-	static char buf[20];
++	static char buf[16];
+ 	const unsigned char *bytep = (const void *)&addrp->s_addr;
+ 
+ 	sprintf(buf, "%u.%u.%u.%u", bytep[0], bytep[1], bytep[2], bytep[3]);
+-- 
+2.40.0
+

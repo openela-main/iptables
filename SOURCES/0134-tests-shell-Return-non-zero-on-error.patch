@@ -1,0 +1,26 @@
+From b8b02934ad125df53b34af7840be34d5500e1114 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Mon, 6 Sep 2021 17:28:30 +0200
+Subject: [PATCH] tests: shell: Return non-zero on error
+
+If any test fails, return a non-zero exit code.
+
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 481626bb4e9c51477ec99dde0727e3af69d2380f)
+---
+ iptables/tests/shell/run-tests.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/iptables/tests/shell/run-tests.sh b/iptables/tests/shell/run-tests.sh
+index 2125e2cb119bb..fbb17bedc5478 100755
+--- a/iptables/tests/shell/run-tests.sh
++++ b/iptables/tests/shell/run-tests.sh
+@@ -176,4 +176,4 @@ failed=$((legacy_fail+failed))
+ 
+ msg_info "combined results: [OK] $ok [FAILED] $failed [TOTAL] $((ok+failed))"
+ 
+-exit 0
++exit -$failed
+-- 
+2.40.0
+

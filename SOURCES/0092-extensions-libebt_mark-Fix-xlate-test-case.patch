@@ -1,0 +1,57 @@
+From 6f275ecd5b0654a865d8230c1955baeeed4dae5d Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Fri, 11 Mar 2022 18:28:49 +0100
+Subject: [PATCH] extensions: libebt_mark: Fix xlate test case
+
+The false suffix effectively disabled this test file, but it also has
+problems: Apart from brmark_xlate() printing 'meta mark' instead of just
+'mark', target is printed in the wrong position (like with any other
+target-possessing extension.
+
+Fixes: e67c08880961f ("ebtables-translate: add initial test cases")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit bc5f9d05dbf7d0a6c5256c63c492273c93ad3434)
+---
+ extensions/libebt_mark.txlate | 11 +++++++++++
+ extensions/libebt_mark.xlate  | 11 -----------
+ 2 files changed, 11 insertions(+), 11 deletions(-)
+ create mode 100644 extensions/libebt_mark.txlate
+ delete mode 100644 extensions/libebt_mark.xlate
+
+diff --git a/extensions/libebt_mark.txlate b/extensions/libebt_mark.txlate
+new file mode 100644
+index 0000000000000..7529302d9a444
+--- /dev/null
++++ b/extensions/libebt_mark.txlate
+@@ -0,0 +1,11 @@
++ebtables-translate -A INPUT --mark-set 42
++nft add rule bridge filter INPUT meta mark set 0x2a accept counter
++
++ebtables-translate -A INPUT --mark-or 42 --mark-target RETURN
++nft add rule bridge filter INPUT meta mark set meta mark or 0x2a return counter
++
++ebtables-translate -A INPUT --mark-and 42 --mark-target ACCEPT
++nft add rule bridge filter INPUT meta mark set meta mark and 0x2a accept counter
++
++ebtables-translate -A INPUT --mark-xor 42 --mark-target DROP
++nft add rule bridge filter INPUT meta mark set meta mark xor 0x2a drop counter
+diff --git a/extensions/libebt_mark.xlate b/extensions/libebt_mark.xlate
+deleted file mode 100644
+index e0982a1e8ebd7..0000000000000
+--- a/extensions/libebt_mark.xlate
++++ /dev/null
+@@ -1,11 +0,0 @@
+-ebtables-translate -A INPUT --mark-set 42
+-nft add rule bridge filter INPUT mark set 0x2a counter
+-
+-ebtables-translate -A INPUT --mark-or 42 --mark-target RETURN
+-nft add rule bridge filter INPUT mark set mark or 0x2a counter return
+-
+-ebtables-translate -A INPUT --mark-and 42 --mark-target ACCEPT
+-nft add rule bridge filter INPUT mark set mark and 0x2a counter accept
+-
+-ebtables-translate -A INPUT --mark-xor 42 --mark-target DROP
+-nft add rule bridge filter INPUT mark set mark xor 0x2a counter drop
+-- 
+2.40.0
+

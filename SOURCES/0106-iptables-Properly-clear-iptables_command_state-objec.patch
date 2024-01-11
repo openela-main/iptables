@@ -1,0 +1,75 @@
+From d5391d8f96dffaaaf665233f0c2349455e2fc848 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Fri, 25 Nov 2022 21:44:39 +0100
+Subject: [PATCH] iptables: Properly clear iptables_command_state object
+
+When adding a rule with a target which defines a udata_size, valgrind
+prints:
+
+8 bytes in 1 blocks are definitely lost in loss record 1 of 1
+   at 0x484659F: calloc (vg_replace_malloc.c:1328)
+   by 0x486B128: xtables_calloc (xtables.c:434)
+   by 0x1128B4: xs_init_target (xshared.c:238)
+   by 0x113CD3: command_jump (xshared.c:877)
+   by 0x114969: do_parse (xshared.c:1644)
+   by 0x10EEB9: do_command4 (iptables.c:691)
+   by 0x10E45B: iptables_main (iptables-standalone.c:59)
+   by 0x49A2349: (below main) (in /lib64/libc.so.6)
+
+It is not sufficient to free cs.target->t, so call
+xtables_clear_iptables_command_state() which takes care of all the
+details.
+
+Fixes: 2dba676b68ef8 ("extensions: support for per-extension instance "global" variable space")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 8bee0db39f7553589c2cec58cc92ed2eafd2eb57)
+---
+ iptables/ip6tables.c | 3 +--
+ iptables/iptables.c  | 3 +--
+ 2 files changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/iptables/ip6tables.c b/iptables/ip6tables.c
+index 897f30d5ef4b0..a0b7d4302a976 100644
+--- a/iptables/ip6tables.c
++++ b/iptables/ip6tables.c
+@@ -1559,7 +1559,6 @@ int do_command6(int argc, char *argv[], char **table,
+ 			xtables_find_target(cs.jumpto, XTF_LOAD_MUST_SUCCEED);
+ 		} else {
+ 			e = generate_entry(&cs.fw6, cs.matches, cs.target->t);
+-			free(cs.target->t);
+ 		}
+ 	}
+ 
+@@ -1658,7 +1657,7 @@ int do_command6(int argc, char *argv[], char **table,
+ 	if (verbose > 1)
+ 		dump_entries6(*handle);
+ 
+-	xtables_rule_matches_free(&cs.matches);
++	xtables_clear_iptables_command_state(&cs);
+ 
+ 	if (e != NULL) {
+ 		free(e);
+diff --git a/iptables/iptables.c b/iptables/iptables.c
+index 9964d14ed8195..b519fb59cc071 100644
+--- a/iptables/iptables.c
++++ b/iptables/iptables.c
+@@ -1552,7 +1552,6 @@ int do_command4(int argc, char *argv[], char **table,
+ 			xtables_find_target(cs.jumpto, XTF_LOAD_MUST_SUCCEED);
+ 		} else {
+ 			e = generate_entry(&cs.fw, cs.matches, cs.target->t);
+-			free(cs.target->t);
+ 		}
+ 	}
+ 
+@@ -1651,7 +1650,7 @@ int do_command4(int argc, char *argv[], char **table,
+ 	if (verbose > 1)
+ 		dump_entries(*handle);
+ 
+-	xtables_rule_matches_free(&cs.matches);
++	xtables_clear_iptables_command_state(&cs);
+ 
+ 	if (e != NULL) {
+ 		free(e);
+-- 
+2.40.0
+

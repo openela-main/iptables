@@ -1,0 +1,118 @@
+From 0a2bf490dde3b55fd2607976aa07a853a18e15f7 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Wed, 16 Mar 2022 17:14:07 +0100
+Subject: [PATCH] nft: Reject standard targets as chain names when restoring
+
+Reuse parse_chain() called from do_parse() for '-N' and rename it for a
+better description of what it does.
+
+Note that by itself, this patch will likely kill iptables-restore
+performance for big rulesets due to the extra extension lookup for chain
+lines. A following patch announcing those chains to libxtables will
+alleviate that.
+
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+Reviewed-by: Florian Westphal <fw@strlen.de>
+(cherry picked from commit b1aee6b2238794446feba41778f88703784560f7)
+
+Conflicts:
+	iptables/xshared.c
+-> Context change due to missing commit 9dc50b5b8e441
+   ("xshared: Merge invflags handling code").
+-> Adjust to missing commits 62c3c93d4b0f5
+   ("xshared: Move do_parse to shared space"), 9baf3bf0e77da
+   ("iptables: Use xtables' do_parse() function") and 5c2c2eea2fff3
+   ("ip6tables: Use the shared do_parse, too").
+---
+ iptables/ip6tables.c       | 2 +-
+ iptables/iptables.c        | 2 +-
+ iptables/xshared.c         | 2 +-
+ iptables/xshared.h         | 2 +-
+ iptables/xtables-restore.c | 5 +----
+ iptables/xtables.c         | 2 +-
+ 6 files changed, 6 insertions(+), 9 deletions(-)
+
+diff --git a/iptables/ip6tables.c b/iptables/ip6tables.c
+index 6db91c807bcea..897f30d5ef4b0 100644
+--- a/iptables/ip6tables.c
++++ b/iptables/ip6tables.c
+@@ -1156,7 +1156,7 @@ int do_command6(int argc, char *argv[], char **table,
+ 			break;
+ 
+ 		case 'N':
+-			parse_chain(optarg);
++			assert_valid_chain_name(optarg);
+ 			add_command(&command, CMD_NEW_CHAIN, CMD_NONE,
+ 				    cs.invert);
+ 			chain = optarg;
+diff --git a/iptables/iptables.c b/iptables/iptables.c
+index a33416a887ed4..9964d14ed8195 100644
+--- a/iptables/iptables.c
++++ b/iptables/iptables.c
+@@ -1153,7 +1153,7 @@ int do_command4(int argc, char *argv[], char **table,
+ 			break;
+ 
+ 		case 'N':
+-			parse_chain(optarg);
++			assert_valid_chain_name(optarg);
+ 			add_command(&command, CMD_NEW_CHAIN, CMD_NONE,
+ 				    cs.invert);
+ 			chain = optarg;
+diff --git a/iptables/xshared.c b/iptables/xshared.c
+index f7581967efc28..b052b849b2069 100644
+--- a/iptables/xshared.c
++++ b/iptables/xshared.c
+@@ -849,7 +849,7 @@ char opt2char(int option)
+ 	return *ptr;
+ }
+ 
+-void parse_chain(const char *chainname)
++void assert_valid_chain_name(const char *chainname)
+ {
+ 	const char *ptr;
+ 
+diff --git a/iptables/xshared.h b/iptables/xshared.h
+index d80c8beee1894..c512f20afd33a 100644
+--- a/iptables/xshared.h
++++ b/iptables/xshared.h
+@@ -222,7 +222,7 @@ char cmd2char(int option);
+ void add_command(unsigned int *cmd, const int newcmd,
+ 		 const int othercmds, int invert);
+ int parse_rulenumber(const char *rule);
+-void parse_chain(const char *chainname);
++void assert_valid_chain_name(const char *chainname);
+ 
+ void generic_opt_check(int command, int options);
+ char opt2char(int option);
+diff --git a/iptables/xtables-restore.c b/iptables/xtables-restore.c
+index a3bb4f00e79c6..5d0e44843b285 100644
+--- a/iptables/xtables-restore.c
++++ b/iptables/xtables-restore.c
+@@ -156,10 +156,7 @@ static void xtables_restore_parse_line(struct nft_handle *h,
+ 				   "%s: line %u chain name invalid\n",
+ 				   xt_params->program_name, line);
+ 
+-		if (strlen(chain) >= XT_EXTENSION_MAXNAMELEN)
+-			xtables_error(PARAMETER_PROBLEM,
+-				   "Invalid chain name `%s' (%u chars max)",
+-				   chain, XT_EXTENSION_MAXNAMELEN - 1);
++		assert_valid_chain_name(chain);
+ 
+ 		policy = strtok(NULL, " \t\n");
+ 		DEBUGP("line %u, policy '%s'\n", line, policy);
+diff --git a/iptables/xtables.c b/iptables/xtables.c
+index 7ef1702a0cd50..3c7b3fc45b6f6 100644
+--- a/iptables/xtables.c
++++ b/iptables/xtables.c
+@@ -587,7 +587,7 @@ void do_parse(struct nft_handle *h, int argc, char *argv[],
+ 			break;
+ 
+ 		case 'N':
+-			parse_chain(optarg);
++			assert_valid_chain_name(optarg);
+ 			add_command(&p->command, CMD_NEW_CHAIN, CMD_NONE,
+ 				    cs->invert);
+ 			p->chain = optarg;
+-- 
+2.40.0
+

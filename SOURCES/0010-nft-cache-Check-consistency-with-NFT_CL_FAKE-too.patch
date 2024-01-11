@@ -1,0 +1,39 @@
+From 895077fbd8f11b717fd414a02d22dae99d94b390 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Wed, 29 Jul 2020 15:39:31 +0200
+Subject: [PATCH] nft: cache: Check consistency with NFT_CL_FAKE, too
+
+Athough this cache level fetches table names only, it shouldn't skip the
+consistency check.
+
+Fixes: f42bfb344af82 ("nft: cache: Re-establish cache consistency check")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit b531365ce32f386d91c6a0bbc80ec4076e4babdd)
+---
+ iptables/nft-cache.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/iptables/nft-cache.c b/iptables/nft-cache.c
+index 638b18bc7e382..434cc10b82ce7 100644
+--- a/iptables/nft-cache.c
++++ b/iptables/nft-cache.c
+@@ -511,14 +511,14 @@ __nft_build_cache(struct nft_handle *h)
+ 	if (req->level >= NFT_CL_TABLES)
+ 		fetch_table_cache(h);
+ 	if (req->level == NFT_CL_FAKE)
+-		return;
++		goto genid_check;
+ 	if (req->level >= NFT_CL_CHAINS)
+ 		fetch_chain_cache(h, t, chains);
+ 	if (req->level >= NFT_CL_SETS)
+ 		fetch_set_cache(h, t, NULL);
+ 	if (req->level >= NFT_CL_RULES)
+ 		fetch_rule_cache(h, t);
+-
++genid_check:
+ 	mnl_genid_get(h, &genid_check);
+ 	if (h->nft_genid != genid_check) {
+ 		flush_cache(h, h->cache, NULL);
+-- 
+2.40.0
+

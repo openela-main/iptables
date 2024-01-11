@@ -1,0 +1,31 @@
+From ce7198e207384f91d510b50e64305de3e05c2c61 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Thu, 17 Nov 2022 16:01:11 +0100
+Subject: [PATCH] extensions: MARK: Sanitize MARK_xlate()
+
+Since markinfo->mode might contain unexpected values, add a default case
+returning zero.
+
+Fixes: afefc7a134ca0 ("extensions: libxt_MARK: Add translation for revision 1 to nft")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit c4fc6440a6f39606e38744bfc827852bb68829f4)
+---
+ extensions/libxt_MARK.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/extensions/libxt_MARK.c b/extensions/libxt_MARK.c
+index 1536563d0f4c7..100f6a38996ac 100644
+--- a/extensions/libxt_MARK.c
++++ b/extensions/libxt_MARK.c
+@@ -366,6 +366,8 @@ static int MARK_xlate(struct xt_xlate *xl,
+ 	case XT_MARK_OR:
+ 		xt_xlate_add(xl, "mark or 0x%x ", (uint32_t)markinfo->mark);
+ 		break;
++	default:
++		return 0;
+ 	}
+ 
+ 	return 1;
+-- 
+2.40.0
+

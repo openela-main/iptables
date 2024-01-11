@@ -1,0 +1,58 @@
+From e004e9e1d0e7ef4d9756d9f01feef8efef02300b Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Sat, 6 Nov 2021 01:09:37 +0100
+Subject: [PATCH] nft-shared: Drop unused function print_proto()
+
+The last users vanished back in 2013. There is identical code in
+save_rule_details(), but with only a single user there's not much point
+in keeping the function.
+
+Fixes: cdc78b1d6bd7b ("nft: convert rule into a command state structure")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit cf14b92bc1a3f5040437234dffe5cf6aa59711a5)
+---
+ iptables/nft-shared.c | 15 ---------------
+ iptables/nft-shared.h |  1 -
+ 2 files changed, 16 deletions(-)
+
+diff --git a/iptables/nft-shared.c b/iptables/nft-shared.c
+index 4253b08196d29..f270f610a8f67 100644
+--- a/iptables/nft-shared.c
++++ b/iptables/nft-shared.c
+@@ -373,21 +373,6 @@ static void nft_parse_match(struct nft_xt_ctx *ctx, struct nftnl_expr *e)
+ 		ctx->h->ops->parse_match(match, ctx->cs);
+ }
+ 
+-void print_proto(uint16_t proto, int invert)
+-{
+-	const struct protoent *pent = getprotobynumber(proto);
+-
+-	if (invert)
+-		printf("! ");
+-
+-	if (pent) {
+-		printf("-p %s ", pent->p_name);
+-		return;
+-	}
+-
+-	printf("-p %u ", proto);
+-}
+-
+ void get_cmp_data(struct nftnl_expr *e, void *data, size_t dlen, bool *inv)
+ {
+ 	uint32_t len;
+diff --git a/iptables/nft-shared.h b/iptables/nft-shared.h
+index 6fc81d9ce08ef..519118a2daf6c 100644
+--- a/iptables/nft-shared.h
++++ b/iptables/nft-shared.h
+@@ -139,7 +139,6 @@ bool is_same_interfaces(const char *a_iniface, const char *a_outiface,
+ int parse_meta(struct nftnl_expr *e, uint8_t key, char *iniface,
+ 		unsigned char *iniface_mask, char *outiface,
+ 		unsigned char *outiface_mask, uint8_t *invflags);
+-void print_proto(uint16_t proto, int invert);
+ void get_cmp_data(struct nftnl_expr *e, void *data, size_t dlen, bool *inv);
+ void nft_rule_to_iptables_command_state(struct nft_handle *h,
+ 					const struct nftnl_rule *r,
+-- 
+2.40.0
+

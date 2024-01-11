@@ -1,0 +1,46 @@
+From 1dcbf8ed6849543fcaffb8af0d50e08e27232ce2 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Fri, 21 Jul 2023 13:14:36 +0200
+Subject: [PATCH] nft: Special casing for among match in compare_matches()
+
+When other extensions may have "garbage" appended to their data which
+should not be considered for match comparison, among match is the
+opposite in that it extends its data beyond the value in 'size' field.
+Add special casing to cover for this, avoiding false-positive rule
+comparison.
+
+Fixes: 26753888720d8 ("nft: bridge: Rudimental among extension support")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 10583537004f7ecd4aa11f6c12b7ba73fb77fc11)
+---
+ iptables/nft-shared.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/iptables/nft-shared.c b/iptables/nft-shared.c
+index ed093c07d7617..0b5745f7e82f4 100644
+--- a/iptables/nft-shared.c
++++ b/iptables/nft-shared.c
+@@ -911,6 +911,7 @@ bool compare_matches(struct xtables_rule_match *mt1,
+ 	for (mp1 = mt1, mp2 = mt2; mp1 && mp2; mp1 = mp1->next, mp2 = mp2->next) {
+ 		struct xt_entry_match *m1 = mp1->match->m;
+ 		struct xt_entry_match *m2 = mp2->match->m;
++		size_t cmplen = mp1->match->userspacesize;
+ 
+ 		if (strcmp(m1->u.user.name, m2->u.user.name) != 0) {
+ 			DEBUGP("mismatching match name\n");
+@@ -922,8 +923,10 @@ bool compare_matches(struct xtables_rule_match *mt1,
+ 			return false;
+ 		}
+ 
+-		if (memcmp(m1->data, m2->data,
+-			   mp1->match->userspacesize) != 0) {
++		if (!strcmp(m1->u.user.name, "among"))
++			cmplen = m1->u.match_size - sizeof(*m1);
++
++		if (memcmp(m1->data, m2->data, cmplen) != 0) {
+ 			DEBUGP("mismatch match data\n");
+ 			return false;
+ 		}
+-- 
+2.40.0
+

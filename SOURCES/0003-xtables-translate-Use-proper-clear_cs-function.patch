@@ -1,0 +1,30 @@
+From d9497b521e6f512f27bd1d4a88086f50418cb7b8 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Tue, 16 Jun 2020 13:06:26 +0200
+Subject: [PATCH] xtables-translate: Use proper clear_cs function
+
+Avoid memleaks by performing a full free of any allocated data in local
+iptables_command_state variable.
+
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 63fa2b1cb98be66990912d7eb42eab5440437087)
+---
+ iptables/xtables-translate.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/iptables/xtables-translate.c b/iptables/xtables-translate.c
+index 363c8be15b3fa..575fb320dc408 100644
+--- a/iptables/xtables-translate.c
++++ b/iptables/xtables-translate.c
+@@ -319,7 +319,7 @@ static int do_command_xlate(struct nft_handle *h, int argc, char *argv[],
+ 		exit(1);
+ 	}
+ 
+-	xtables_rule_matches_free(&cs.matches);
++	nft_clear_iptables_command_state(&cs);
+ 
+ 	if (h->family == AF_INET) {
+ 		free(args.s.addr.v4);
+-- 
+2.40.0
+

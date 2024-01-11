@@ -1,0 +1,72 @@
+From 8d25120581dfdac4585b471d0d0ed36ecf75c817 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Wed, 11 Aug 2021 14:46:22 +0200
+Subject: [PATCH] iptables-test: Make netns spawning more robust
+
+On systems without unshare Python module, try to call unshare binary
+with oneself as parameters.
+
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 7ae14dc1a938fc158aaa1761b4fba57c5f1ab7a0)
+---
+ iptables-test.py | 30 ++++++++++++++++++++++++++++++
+ 1 file changed, 30 insertions(+)
+
+diff --git a/iptables-test.py b/iptables-test.py
+index 6b6eb611a7290..ffe5b1f7da972 100755
+--- a/iptables-test.py
++++ b/iptables-test.py
+@@ -304,6 +304,31 @@ log_file = None
+ 
+     print('\n'.join(missing))
+ 
++def spawn_netns():
++    # prefer unshare module
++    try:
++        import unshare
++        unshare.unshare(unshare.CLONE_NEWNET)
++        return True
++    except:
++        pass
++
++    # sledgehammer style:
++    # - call ourselves prefixed by 'unshare -n' if found
++    # - pass extra --no-netns parameter to avoid another recursion
++    try:
++        import shutil
++
++        unshare = shutil.which("unshare")
++        if unshare is None:
++            return False
++
++        sys.argv.append("--no-netns")
++        os.execv(unshare, [unshare, "-n", sys.executable] + sys.argv)
++    except:
++        pass
++
++    return False
+ 
+ #
+ # main
+@@ -323,6 +348,8 @@ log_file = None
+                         help='Test iptables-over-nftables')
+     parser.add_argument('-N', '--netns', action='store_true',
+                         help='Test netnamespace path')
++    parser.add_argument('--no-netns', action='store_true',
++                        help='Do not run testsuite in own network namespace')
+     args = parser.parse_args()
+ 
+     #
+@@ -341,6 +368,9 @@ log_file = None
+         print("You need to be root to run this, sorry")
+         return
+ 
++    if not args.netns and not args.no_netns and not spawn_netns():
++        print("Cannot run in own namespace, connectivity might break")
++
+     if not args.host:
+         os.putenv("XTABLES_LIBDIR", os.path.abspath(EXTENSIONS_PATH))
+         os.putenv("PATH", "%s/iptables:%s" % (os.path.abspath(os.path.curdir),
+-- 
+2.40.0
+

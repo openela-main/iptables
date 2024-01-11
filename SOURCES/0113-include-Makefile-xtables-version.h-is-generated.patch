@@ -1,0 +1,41 @@
+From 8e9fbe24942ce70909e7f8d672972af949155e8e Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Wed, 7 Dec 2022 17:23:12 +0100
+Subject: [PATCH] include/Makefile: xtables-version.h is generated
+
+List it in nodist_include_HEADERS so it is installed but not
+distributed - configure generates it from xtables-version.h.in.
+
+While being at it, list xtables.h in plain include_HEADERS. It doesn't
+sit in a sub-dir, so the nobase prefix does not make a difference.
+
+Fixes: df60a301bf24c ("build: separate AC variable replacements from xtables.h")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 19f03b7a2a21f22a53b6b0d2f542062986e2f807)
+---
+ include/Makefile.am | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/include/Makefile.am b/include/Makefile.am
+index e69512092253a..36e0f347aa6be 100644
+--- a/include/Makefile.am
++++ b/include/Makefile.am
+@@ -1,12 +1,12 @@
+ # -*- Makefile -*-
+ 
+-include_HEADERS =
+-nobase_include_HEADERS = xtables.h xtables-version.h
++include_HEADERS = xtables.h
++nodist_include_HEADERS = xtables-version.h
+ 
+ if ENABLE_LIBIPQ
+ include_HEADERS += libipq/libipq.h
+ endif
+ 
+-nobase_include_HEADERS += \
++nobase_include_HEADERS = \
+ 	libiptc/ipt_kernel_headers.h libiptc/libiptc.h \
+ 	libiptc/libip6tc.h libiptc/libxtc.h libiptc/xtcshared.h
+-- 
+2.40.0
+

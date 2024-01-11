@@ -1,0 +1,24 @@
+From 441541709e8e994c487d91cf8a7761232dc1bd5e Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Thu, 22 Dec 2022 17:23:49 +0100
+Subject: [PATCH] gitignore: Ignore utils/nfsynproxy
+
+Fixes: 9e6928f037823 ("utils: add nfsynproxy tool")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 567f6ba105302f57ccb6789dbcfc9e1e2657809a)
+---
+ utils/.gitignore | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/utils/.gitignore b/utils/.gitignore
+index 6300812b1701b..e508bb3270c4f 100644
+--- a/utils/.gitignore
++++ b/utils/.gitignore
+@@ -2,3 +2,4 @@
+ /nfnl_osf.8
+ /nfbpf_compile
+ /nfbpf_compile.8
++/nfsynproxy
+-- 
+2.40.0
+

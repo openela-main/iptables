@@ -1,0 +1,52 @@
+From 7eb8f16deca37f85b2988204368051a4556b6228 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Thu, 1 Dec 2022 15:08:01 +0100
+Subject: [PATCH] nft: Fix match generator for '! -i +'
+
+It's actually nonsense since it will never match, but iptables accepts
+it and the resulting nftables rule must behave identically. Reuse the
+solution implemented into xtables-translate (by commit e179e87a1179e)
+and turn the above match into 'iifname INVAL/D'.
+
+The commit this fixes merely ignored the fact that "any interface" match
+might be inverted.
+
+Fixes: 0a8635183edd0 ("xtables-compat: ignore '+' interface name")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 5baa4279264bb4ab93c6e80b4887f2bd29691446)
+
+Conflicts:
+	iptables/nft-shared.c
+-> Adjusted to missing commit 7e38890c6b4fb
+   ("nft: prepare for dynamic register allocation").
+---
+ iptables/nft-shared.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/iptables/nft-shared.c b/iptables/nft-shared.c
+index 14b04b24085a0..8e005ed3b5818 100644
+--- a/iptables/nft-shared.c
++++ b/iptables/nft-shared.c
+@@ -143,6 +143,9 @@ void add_iniface(struct nftnl_rule *r, char *iface, uint32_t op)
+ 	if (iface[iface_len - 1] == '+') {
+ 		if (iface_len > 1)
+ 			add_cmp_ptr(r, op, iface, iface_len - 1);
++		else if (op != NFT_CMP_EQ)
++			add_cmp_ptr(r, NFT_CMP_EQ, "INVAL/D",
++				    strlen("INVAL/D") + 1);
+ 	} else
+ 		add_cmp_ptr(r, op, iface, iface_len + 1);
+ }
+@@ -157,6 +160,9 @@ void add_outiface(struct nftnl_rule *r, char *iface, uint32_t op)
+ 	if (iface[iface_len - 1] == '+') {
+ 		if (iface_len > 1)
+ 			add_cmp_ptr(r, op, iface, iface_len - 1);
++		else if (op != NFT_CMP_EQ)
++			add_cmp_ptr(r, NFT_CMP_EQ, "INVAL/D",
++				    strlen("INVAL/D") + 1);
+ 	} else
+ 		add_cmp_ptr(r, op, iface, iface_len + 1);
+ }
+-- 
+2.40.0
+

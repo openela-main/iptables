@@ -1,0 +1,53 @@
+From c83d8cec2a2c70776ca569699983f0cf3e11fb99 Mon Sep 17 00:00:00 2001
+From: Jeremy Sowden <jeremy@azazel.net>
+Date: Fri, 1 Oct 2021 18:41:40 +0100
+Subject: [PATCH] extensions: libxt_NFLOG: remove extra space when saving
+ targets with prefixes
+
+When printing out NFLOG targets an extra space was inserted between
+`--nflog-prefix` and the prefix itself:
+
+  $ sudo /usr/sbin/iptables -A INPUT -j NFLOG --nflog-prefix test
+  $ sudo /usr/sbin/iptables-save | grep NFLOG
+  -A INPUT -j NFLOG --nflog-prefix  test
+                                  ^^
+Fixes: 73866357e4a7 ("iptables: do not print trailing whitespaces")
+Signed-off-by: Jeremy Sowden <jeremy@azazel.net>
+Signed-off-by: Florian Westphal <fw@strlen.de>
+(cherry picked from commit 05286bab77a6e0f9502e8fb99e1c53ed15663f3f)
+---
+ extensions/libxt_NFLOG.c | 2 +-
+ extensions/libxt_NFLOG.t | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/extensions/libxt_NFLOG.c b/extensions/libxt_NFLOG.c
+index 02a1b4aa35a3b..80c0263510f1e 100644
+--- a/extensions/libxt_NFLOG.c
++++ b/extensions/libxt_NFLOG.c
+@@ -78,7 +78,7 @@ static void NFLOG_check(struct xt_fcheck_call *cb)
+ static void nflog_print(const struct xt_nflog_info *info, char *prefix)
+ {
+ 	if (info->prefix[0] != '\0') {
+-		printf(" %snflog-prefix ", prefix);
++		printf(" %snflog-prefix", prefix);
+ 		xtables_save_string(info->prefix);
+ 	}
+ 	if (info->group)
+diff --git a/extensions/libxt_NFLOG.t b/extensions/libxt_NFLOG.t
+index 69b0255a891b1..bc529b19fc3ff 100644
+--- a/extensions/libxt_NFLOG.t
++++ b/extensions/libxt_NFLOG.t
+@@ -12,8 +12,8 @@
+ -j NFLOG --nflog-size 4294967295;=;OK
+ -j NFLOG --nflog-size 4294967296;;FAIL
+ -j NFLOG --nflog-size -1;;FAIL
+--j NFLOG --nflog-prefix  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx;=;OK
+--j NFLOG --nflog-prefix  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx;-j NFLOG --nflog-prefix  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx;OK
++-j NFLOG --nflog-prefix xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx;=;OK
++-j NFLOG --nflog-prefix xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx;-j NFLOG --nflog-prefix xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx;OK
+ -j NFLOG --nflog-threshold 1;=;OK
+ # ERROR: line 13 (should fail: iptables -A INPUT -j NFLOG --nflog-threshold 0
+ # -j NFLOG --nflog-threshold 0;;FAIL
+-- 
+2.40.0
+

@@ -1,0 +1,33 @@
+From 88416b4ac4fabde5098f2ff22dc634e5e6f6da51 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Wed, 1 Jun 2022 19:29:28 +0200
+Subject: [PATCH] iptables-legacy: Drop redundant include of xtables-multi.h
+
+The header is included unconditionally first, so no point in doing it a
+second time of ENABLE_NFTABLES is defined.
+
+Fixes: be70918eab26e ("xtables: rename xt-multi binaries to -nft, -legacy")
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit ef5d0c68261611d72ccecb3ae05c24448fbc91f5)
+---
+ iptables/xtables-legacy-multi.c | 4 ----
+ 1 file changed, 4 deletions(-)
+
+diff --git a/iptables/xtables-legacy-multi.c b/iptables/xtables-legacy-multi.c
+index 3b7905ff76b13..2c71931551b5c 100644
+--- a/iptables/xtables-legacy-multi.c
++++ b/iptables/xtables-legacy-multi.c
+@@ -14,10 +14,6 @@
+ #include "ip6tables-multi.h"
+ #endif
+ 
+-#ifdef ENABLE_NFTABLES
+-#include "xtables-multi.h"
+-#endif
+-
+ static const struct subcommand multi_subcommands[] = {
+ #ifdef ENABLE_IPV4
+ 	{"iptables",            iptables_main},
+-- 
+2.40.0
+

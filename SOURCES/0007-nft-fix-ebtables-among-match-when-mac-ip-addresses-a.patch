@@ -1,0 +1,36 @@
+From f24d2449693558d3fbf2a8313a7eb65ecf25f6af Mon Sep 17 00:00:00 2001
+From: Florian Westphal <fw@strlen.de>
+Date: Tue, 2 Aug 2022 14:52:30 +0200
+Subject: [PATCH] nft: fix ebtables among match when mac+ip addresses are used
+
+When matching mac and ip addresses, the ip address needs to be placed
+into then 2nd 32bit register, the switch to dynamic register allocation
+instead re-uses reg1, this partially clobbers the mac address, so
+set lookup comes up empty even though it should find a match.
+
+Fixes: 7e38890c6b4fb ("nft: prepare for dynamic register allocation")
+Reported-by: Yi Chen <yiche@redhat.com>
+Signed-off-by: Florian Westphal <fw@strlen.de>
+(cherry picked from commit 2ba74d421cd622757df7a93720afc3b5b4b3b4e0)
+---
+ iptables/nft.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/iptables/nft.c b/iptables/nft.c
+index ec79f2bc5e98b..ee003511ab7f3 100644
+--- a/iptables/nft.c
++++ b/iptables/nft.c
+@@ -1208,8 +1208,8 @@ static int __add_nft_among(struct nft_handle *h, const char *table,
+ 	nftnl_rule_add_expr(r, e);
+ 
+ 	if (ip) {
+-		e = gen_payload(h, NFT_PAYLOAD_NETWORK_HEADER, ip_addr_off[dst],
+-				sizeof(struct in_addr), &reg);
++		e = __gen_payload(NFT_PAYLOAD_NETWORK_HEADER, ip_addr_off[dst],
++				sizeof(struct in_addr), NFT_REG32_02);
+ 		if (!e)
+ 			return -ENOMEM;
+ 		nftnl_rule_add_expr(r, e);
+-- 
+2.38.0
+

@@ -1,0 +1,51 @@
+From f4f3fd1fa83a56c051fa72ee619ef23942e65504 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <phil@nwl.cc>
+Date: Thu, 28 Jan 2021 01:09:56 +0100
+Subject: [PATCH] ebtables: Exit gracefully on invalid table names
+
+Users are able to cause program abort by passing a table name that
+doesn't exist:
+
+| # ebtables-nft -t dummy -P INPUT ACCEPT
+| ebtables: nft-cache.c:455: fetch_chain_cache: Assertion `t' failed.
+| Aborted
+
+Avoid this by checking table existence just like iptables-nft does upon
+parsing '-t' optarg. Since the list of tables is known and fixed,
+checking the given name's length is pointless. So just drop that check
+in return.
+
+With this patch in place, output looks much better:
+
+| # ebtables-nft -t dummy -P INPUT ACCEPT
+| ebtables v1.8.7 (nf_tables): table 'dummy' does not exist
+| Perhaps iptables or your kernel needs to be upgraded.
+
+Signed-off-by: Phil Sutter <phil@nwl.cc>
+(cherry picked from commit 30c1d443896311e69762d6b51b63908ec602574f)
+---
+ iptables/xtables-eb.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/iptables/xtables-eb.c b/iptables/xtables-eb.c
+index a3d659fb35e27..6e47feec5132f 100644
+--- a/iptables/xtables-eb.c
++++ b/iptables/xtables-eb.c
+@@ -957,10 +957,10 @@ int do_commandeb(struct nft_handle *h, int argc, char *argv[], char **table,
+ 				xtables_error(PARAMETER_PROBLEM,
+ 					      "The -t option (seen in line %u) cannot be used in %s.\n",
+ 					      line, xt_params->program_name);
+-			if (strlen(optarg) > EBT_TABLE_MAXNAMELEN - 1)
+-				xtables_error(PARAMETER_PROBLEM,
+-					      "Table name length cannot exceed %d characters",
+-					      EBT_TABLE_MAXNAMELEN - 1);
++			if (!nft_table_builtin_find(h, optarg))
++				xtables_error(VERSION_PROBLEM,
++					      "table '%s' does not exist",
++					      optarg);
+ 			*table = optarg;
+ 			table_set = true;
+ 			break;
+-- 
+2.41.0
+

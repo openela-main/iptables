@@ -10,7 +10,7 @@ Name: iptables
 Summary: Tools for managing Linux kernel packet filtering capabilities
 URL: http://www.netfilter.org/projects/iptables
 Version: 1.8.5
-Release: 10%{?dist}
+Release: 11%{?dist}
 Source: %{url}/files/%{name}-%{version}.tar.bz2
 Source1: iptables.init
 Source2: iptables-config
@@ -169,6 +169,9 @@ Patch142: 0142-nft-bridge-pass-context-structure-to-ops-add-to-impr.patch
 Patch143: 0143-nft-Special-casing-for-among-match-in-compare_matche.patch
 Patch144: 0144-nft-Do-not-pass-nft_rule_ctx-to-add_nft_among.patch
 Patch145: 0145-iptables-nft-fix-basechain-policy-configuration.patch
+Patch146: 0146-iptables-restore-Drop-dead-code.patch
+Patch147: 0147-iptables-apply-Eliminate-shellcheck-warnings.patch
+Patch148: 0148-ebtables-Exit-gracefully-on-invalid-table-names.patch
 
 # pf.os: ISC license
 # iptables-apply: Artistic Licence 2.0
@@ -541,6 +544,11 @@ done
 %doc %{_mandir}/man8/ebtables*.8*
 
 %changelog
+* Thu Nov 16 2023 Phil Sutter <psutter@redhat.com> - 1.8.5-11
+- iptables-restore: Drop dead code
+- iptables-apply: Eliminate shellcheck warnings
+- ebtables: Exit gracefully on invalid table names
+
 * Fri Sep 08 2023 Phil Sutter <psutter@redhat.com> - 1.8.5-10
 - Bump NVR to fix for wrong build tag
 

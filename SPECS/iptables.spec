@@ -1,3 +1,6 @@
+%define iptables_rpmversion 1.8.10
+%define iptables_specrelease 2
+
 # install init scripts to /usr/libexec with systemd
 %global script_path %{_libexecdir}/iptables
 
@@ -15,9 +18,9 @@
 Name: iptables
 Summary: Tools for managing Linux kernel packet filtering capabilities
 URL: https://www.netfilter.org/projects/iptables
-Version: 1.8.8
-Release: 6%{?dist}
-Source: %{url}/files/%{name}-%{version}.tar.bz2
+Version: %{iptables_rpmversion}
+Release: %{iptables_specrelease}%{?dist}%{?buildid}
+Source: %{url}/files/%{name}-%{version}.tar.xz
 Source1: iptables.init
 Source2: iptables-config
 Source3: iptables.service
@@ -30,14 +33,9 @@ Source9: ebtables.service
 Source10: ebtables-config
 Source11: iptables-test.stderr.expect
 
-Patch01: 0001-doc-Add-deprecation-notices-to-all-relevant-man-page.patch
-Patch02: 0002-extensions-SECMARK-Use-a-better-context-in-test-case.patch
-Patch03: 0003-xshared-Fix-build-for-Werror-format-security.patch
-Patch04: 0004-tests-shell-Check-overhead-in-iptables-save-and-rest.patch
-Patch05: 0005-arptables-Support-x-exact-flag.patch
-Patch06: 0006-libxtables-Fix-unsupported-extension-warning-corner-.patch
-Patch07: 0007-nft-fix-ebtables-among-match-when-mac-ip-addresses-a.patch
-Patch08: 0008-nft-un-break-among-match-with-concatenation.patch
+Patch1:             0001-doc-Add-deprecation-notices-to-all-relevant-man-page.patch
+Patch2:             0002-extensions-SECMARK-Use-a-better-context-in-test-case.patch
+Patch3:             0003-ebtables-Fix-corner-case-noflush-restore-bug.patch
 
 # pf.os: ISC license
 # iptables-apply: Artistic 2.0
@@ -45,7 +43,7 @@ License: GPLv2 and Artistic 2.0 and ISC
 
 # libnetfilter_conntrack is needed for xt_connlabel
 BuildRequires: pkgconfig(libnetfilter_conntrack)
-# libnfnetlink-devel is requires for nfnl_osf
+# libnfnetlink-devel is required for nfnl_osf
 BuildRequires: pkgconfig(libnfnetlink)
 BuildRequires: libselinux-devel
 BuildRequires: kernel-headers
@@ -55,7 +53,7 @@ BuildRequires: bison
 BuildRequires: flex
 BuildRequires: gcc
 BuildRequires: pkgconfig(libmnl) >= 1.0
-BuildRequires: pkgconfig(libnftnl) >= 1.1.6
+BuildRequires: pkgconfig(libnftnl) >= 1.2.6
 # libpcap-devel for nfbpf_compile
 BuildRequires: libpcap-devel
 BuildRequires: autoconf
@@ -308,7 +306,9 @@ fi
 %systemd_postun iptables.service ip6tables.service
 %systemd_postun arptables.service ebtables.service
 
-%post nft
+%post -e nft
+[[ %%{_excludedocs} == 1 ]] || do_man=true
+
 pfx=%{_sbindir}/iptables
 pfx6=%{_sbindir}/ip6tables
 %{_sbindir}/update-alternatives --install \
@@ -333,7 +333,7 @@ fi
 	$pfx ebtables $pfx-nft 10 \
 	--slave $pfx-save ebtables-save $pfx-nft-save \
 	--slave $pfx-restore ebtables-restore $pfx-nft-restore \
-	--slave $manpfx.8.gz ebtables-man $manpfx-nft.8.gz
+	${do_man:+--slave $manpfx.8.gz ebtables-man $manpfx-nft.8.gz}
 
 pfx=%{_sbindir}/arptables
 manpfx=%{_mandir}/man8/arptables
@@ -353,9 +353,9 @@ fi
 	$pfx arptables $pfx-nft 10 \
 	--slave $pfx-save arptables-save $pfx-nft-save \
 	--slave $pfx-restore arptables-restore $pfx-nft-restore \
-	--slave $manpfx.8.gz arptables-man $manpfx-nft.8.gz \
-	--slave $manpfx-save.8.gz arptables-save-man $manpfx-nft-save.8.gz \
-	--slave $manpfx-restore.8.gz arptables-restore-man $manpfx-nft-restore.8.gz \
+	${do_man:+--slave $manpfx.8.gz arptables-man $manpfx-nft.8.gz} \
+	${do_man:+--slave $manpfx-save.8.gz arptables-save-man $manpfx-nft-save.8.gz} \
+	${do_man:+--slave $manpfx-restore.8.gz arptables-restore-man $manpfx-nft-restore.8.gz} \
 	--slave $lepfx-helper arptables-helper $lepfx-nft-helper
 
 %postun nft
@@ -454,6 +454,13 @@ fi
 %ghost %{_mandir}/man8/ebtables.8.gz
 
 %changelog
+* Tue Nov 07 2023 Phil Sutter <psutter@redhat.com> [1.8.10-2.el9]
+- ebtables: Fix corner-case noflush restore bug (Phil Sutter) [RHEL-14147]
+
+* Fri Oct 27 2023 Phil Sutter <psutter@redhat.com> [1.8.10-1.el9]
+- spec: Support for _excludedocs macro in alternatives installation (Phil Sutter) [RHEL-5810]
+- Rebase onto version 1.8.10 (Phil Sutter) [RHEL-14147]
+
 * Wed Dec 07 2022 Phil Sutter <psutter@redhat.com> - 1.8.8-6
 - Add expected testsuite result
 

@@ -1,0 +1,99 @@
+From 4c883007ecf15b5fe18a71688a4383686e7c0026 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Wed, 22 May 2024 18:26:58 +0200
+Subject: [PATCH] nft: Fix for broken recover_rule_compat()
+
+JIRA: https://issues.redhat.com/browse/RHEL-26619
+Upstream Status: iptables commit bb1a7a5b297aa271f7f59abbcb891cd94d7fb305
+
+commit bb1a7a5b297aa271f7f59abbcb891cd94d7fb305
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Tue Feb 27 18:47:39 2024 +0100
+
+    nft: Fix for broken recover_rule_compat()
+
+    When IPv4 rule generator was changed to emit payload instead of
+    meta expressions for l4proto matches, the code reinserting
+    NFTNL_RULE_COMPAT_* attributes into rules being reused for counter
+    zeroing was broken by accident.
+
+    Make rule compat recovery aware of the alternative match, basically
+    reinstating the effect of commit 7a373f6683afb ("nft: Fix -Z for rules
+    with NFTA_RULE_COMPAT") but add a test case this time to make sure
+    things stay intact.
+
+    Fixes: 69278f9602b43 ("nft: use payload matching for layer 4 protocol")
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ iptables/nft.c                                | 27 ++++++++++++++++---
+ .../nft-only/0011-zero-needs-compat_0         | 12 +++++++++
+ 2 files changed, 35 insertions(+), 4 deletions(-)
+ create mode 100755 iptables/tests/shell/testcases/nft-only/0011-zero-needs-compat_0
+
+diff --git a/iptables/nft.c b/iptables/nft.c
+index 97fd4f4..c4caf29 100644
+--- a/iptables/nft.c
++++ b/iptables/nft.c
+@@ -3679,6 +3679,27 @@ const char *nft_strerror(int err)
+ 	return strerror(err);
+ }
+ 
++static int l4proto_expr_get_dreg(struct nftnl_expr *e, uint32_t *dregp)
++{
++	const char *name = nftnl_expr_get_str(e, NFTNL_EXPR_NAME);
++	uint32_t poff = offsetof(struct iphdr, protocol);
++	uint32_t pbase = NFT_PAYLOAD_NETWORK_HEADER;
++
++	if (!strcmp(name, "payload") &&
++	    nftnl_expr_get_u32(e, NFTNL_EXPR_PAYLOAD_BASE) == pbase &&
++	    nftnl_expr_get_u32(e, NFTNL_EXPR_PAYLOAD_OFFSET) == poff &&
++	    nftnl_expr_get_u32(e, NFTNL_EXPR_PAYLOAD_LEN) == sizeof(uint8_t)) {
++		*dregp = nftnl_expr_get_u32(e, NFTNL_EXPR_PAYLOAD_DREG);
++		return 0;
++	}
++	if (!strcmp(name, "meta") &&
++	    nftnl_expr_get_u32(e, NFTNL_EXPR_META_KEY) == NFT_META_L4PROTO) {
++		*dregp = nftnl_expr_get_u32(e, NFTNL_EXPR_META_DREG);
++		return 0;
++	}
++	return -1;
++}
++
+ static int recover_rule_compat(struct nftnl_rule *r)
+ {
+ 	struct nftnl_expr_iter *iter;
+@@ -3695,12 +3716,10 @@ next_expr:
+ 	if (!e)
+ 		goto out;
+ 
+-	if (strcmp("meta", nftnl_expr_get_str(e, NFTNL_EXPR_NAME)) ||
+-	    nftnl_expr_get_u32(e, NFTNL_EXPR_META_KEY) != NFT_META_L4PROTO)
++	/* may be 'ip protocol' or 'meta l4proto' with identical RHS */
++	if (l4proto_expr_get_dreg(e, &reg) < 0)
+ 		goto next_expr;
+ 
+-	reg = nftnl_expr_get_u32(e, NFTNL_EXPR_META_DREG);
+-
+ 	e = nftnl_expr_iter_next(iter);
+ 	if (!e)
+ 		goto out;
+diff --git a/iptables/tests/shell/testcases/nft-only/0011-zero-needs-compat_0 b/iptables/tests/shell/testcases/nft-only/0011-zero-needs-compat_0
+new file mode 100755
+index 0000000..e276a95
+--- /dev/null
++++ b/iptables/tests/shell/testcases/nft-only/0011-zero-needs-compat_0
+@@ -0,0 +1,12 @@
++#!/bin/bash
++
++[[ $XT_MULTI == *xtables-nft-multi ]] || { echo "skip $XT_MULTI"; exit 0; }
++
++set -e
++
++rule="-p tcp -m tcp --dport 27374 -c 23 42 -j TPROXY --on-port 50080"
++for cmd in iptables ip6tables; do
++	$XT_MULTI $cmd -t mangle -A PREROUTING $rule
++	$XT_MULTI $cmd -t mangle -Z
++	$XT_MULTI $cmd -t mangle -v -S | grep -q -- "${rule/23 42/0 0}"
++done

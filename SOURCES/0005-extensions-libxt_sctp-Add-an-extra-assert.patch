@@ -1,0 +1,43 @@
+From 6e4197dee5ff051f2daf1327faf1683fe350264f Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Wed, 12 Jun 2024 22:49:48 +0200
+Subject: [PATCH] extensions: libxt_sctp: Add an extra assert()
+
+JIRA: https://issues.redhat.com/browse/RHEL-40928
+Upstream Status: iptables commit 0234117d24609070f08ef36a11795c3c8e4c19bf
+
+commit 0234117d24609070f08ef36a11795c3c8e4c19bf
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Fri May 17 15:20:05 2024 +0200
+
+    extensions: libxt_sctp: Add an extra assert()
+
+    The code is sane, but this keeps popping up in static code analyzers.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ extensions/libxt_sctp.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/extensions/libxt_sctp.c b/extensions/libxt_sctp.c
+index 6e2b274..e8312f0 100644
+--- a/extensions/libxt_sctp.c
++++ b/extensions/libxt_sctp.c
+@@ -7,6 +7,7 @@
+  * libipt_ecn.c borrowed heavily from libipt_dscp.c
+  *
+  */
++#include <assert.h>
+ #include <stdbool.h>
+ #include <stdio.h>
+ #include <string.h>
+@@ -354,6 +355,7 @@ print_chunk_flags(uint32_t chunknum, uint8_t chunk_flags, uint8_t chunk_flags_ma
+ 
+ 	for (i = 7; i >= 0; i--) {
+ 		if (chunk_flags_mask & (1 << i)) {
++			assert(chunknum < ARRAY_SIZE(sctp_chunk_names));
+ 			if (chunk_flags & (1 << i)) {
+ 				printf("%c", sctp_chunk_names[chunknum].valid_flags[7-i]);
+ 			} else {

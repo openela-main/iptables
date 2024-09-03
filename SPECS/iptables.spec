@@ -1,5 +1,5 @@
 %define iptables_rpmversion 1.8.10
-%define iptables_specrelease 2
+%define iptables_specrelease 4
 
 # install init scripts to /usr/libexec with systemd
 %global script_path %{_libexecdir}/iptables
@@ -36,6 +36,8 @@ Source11: iptables-test.stderr.expect
 Patch1:             0001-doc-Add-deprecation-notices-to-all-relevant-man-page.patch
 Patch2:             0002-extensions-SECMARK-Use-a-better-context-in-test-case.patch
 Patch3:             0003-ebtables-Fix-corner-case-noflush-restore-bug.patch
+Patch4:             0004-nft-Fix-for-broken-recover_rule_compat.patch
+Patch5:             0005-extensions-libxt_sctp-Add-an-extra-assert.patch
 
 # pf.os: ISC license
 # iptables-apply: Artistic 2.0
@@ -264,6 +266,21 @@ touch %{buildroot}%{_mandir}/man8/arptables-save.8
 touch %{buildroot}%{_mandir}/man8/arptables-restore.8
 touch %{buildroot}%{_mandir}/man8/ebtables.8
 
+# add symlinks for compatibility to merged extensions
+link_ext() { # (target, link)
+	local targetfile="%{buildroot}%{_libdir}/xtables/${1}.so"
+	local targetname="${1}.so"
+	local link="%{buildroot}%{_libdir}/xtables/${2}.so"
+	[[ -e "$link" ]] && return 0
+	[[ -e "$targetfile" ]] || return 0
+	ln -s $targetname $link
+}
+for fam in ip ip6; do
+	link_ext libxt_LOG lib${fam}t_LOG
+	link_ext libxt_NAT lib${fam}t_SNAT
+	link_ext libxt_NAT lib${fam}t_MASQUERADE
+done
+
 %ldconfig_scriptlets
 
 %post legacy
@@ -369,7 +386,6 @@ fi
 %if %{do_legacy_pkg}
 
 %files legacy
-%doc INCOMPATIBILITIES
 %{_sbindir}/ip{,6}tables-legacy*
 %{_sbindir}/xtables-legacy-multi
 %{_bindir}/iptables-xml
@@ -388,9 +404,15 @@ fi
 %{_libdir}/pkgconfig/libip{,4,6}tc.pc
 
 %files services
+%dir %{script_path}
+%{script_path}/ip{,6}tables.init
+%config(noreplace) %{_sysconfdir}/sysconfig/ip{,6}tables{,-config}
+%{_unitdir}/ip{,6}tables.service
+%dir %{legacy_actions}/ip{,6}tables
+%{legacy_actions}/ip{,6}tables/{save,panic}
 
 # do_legacy_pkg
-%else
+%endif
 
 %files nft-services
 %{_unitdir}/{arp,eb}tables.service
@@ -398,11 +420,6 @@ fi
 %config(noreplace) %{_sysconfdir}/sysconfig/ebtables-config
 %ghost %{_sysconfdir}/sysconfig/arptables
 %ghost %{_sysconfdir}/sysconfig/ebtables
-
-# do_legacy_pkg
-%endif
-
-# the common files in services and nft-services
 %dir %{script_path}
 %{script_path}/ip{,6}tables.init
 %config(noreplace) %{_sysconfdir}/sysconfig/ip{,6}tables{,-config}
@@ -438,6 +455,7 @@ fi
 %{_sbindir}/ip{,6}tables-nft*
 %{_sbindir}/ip{,6}tables{,-restore}-translate
 %{_sbindir}/{eb,arp}tables-nft*
+%{_sbindir}/ebtables-translate
 %{_sbindir}/xtables-nft-multi
 %{_sbindir}/xtables-monitor
 %dir %{_libdir}/xtables
@@ -451,9 +469,18 @@ fi
 %ghost %{_sbindir}/{eb,arp}tables{,-save,-restore}
 %ghost %{_libexecdir}/arptables-helper
 %ghost %{_mandir}/man8/arptables{,-save,-restore}.8.gz
-%ghost %{_mandir}/man8/ebtables.8.gz
+%ghost %{_mandir}/man8/ebtables{,-translate}.8.gz
 
 %changelog
+* Wed Jul 03 2024 Phil Sutter <psutter@redhat.com> [1.8.10-4.el9]
+- spec: Simplify legacy package integration (Phil Sutter) [RHEL-5797]
+
+* Wed Jun 12 2024 Phil Sutter <psutter@redhat.com> [1.8.10-3.el9]
+- extensions: libxt_sctp: Add an extra assert() (Phil Sutter) [RHEL-40928]
+- spec: Add symlinks for merged extension DSOs (Phil Sutter) [RHEL-32463]
+- nft: Fix for broken recover_rule_compat() (Phil Sutter) [RHEL-26619]
+- spec: Ship ebtables-translate and man page (Phil Sutter) [RHEL-32922]
+
 * Tue Nov 07 2023 Phil Sutter <psutter@redhat.com> [1.8.10-2.el9]
 - ebtables: Fix corner-case noflush restore bug (Phil Sutter) [RHEL-14147]
 

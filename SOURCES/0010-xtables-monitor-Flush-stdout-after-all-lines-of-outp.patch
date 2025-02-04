@@ -1,0 +1,46 @@
+From b40d2d0b3381c68a0f0e5d040d2f632191112dcb Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Wed, 14 Aug 2024 14:30:11 +0200
+Subject: [PATCH] xtables-monitor: Flush stdout after all lines of output
+
+JIRA: https://issues.redhat.com/browse/RHEL-47264
+Upstream Status: iptables commit 69da16a7790048a176a44530eb57e4b60184ce6e
+
+commit 69da16a7790048a176a44530eb57e4b60184ce6e
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Fri Jul 12 13:03:18 2024 +0200
+
+    xtables-monitor: Flush stdout after all lines of output
+
+    Writing an xtables-monitor testsuite is pretty much impossible without
+    this due to unreliable output flushing. Just move the fflush() call from
+    trace_cb() to its caller so monitor events benefit from it as well.
+
+    Fixes: 07af4da52ab30 ("xtables-monitor: fix rule printing")
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ iptables/xtables-monitor.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/iptables/xtables-monitor.c b/iptables/xtables-monitor.c
+index cf92355..90d1cc5 100644
+--- a/iptables/xtables-monitor.c
++++ b/iptables/xtables-monitor.c
+@@ -544,7 +544,6 @@ static int trace_cb(const struct nlmsghdr *nlh, struct cb_arg *arg)
+ err_free:
+ 	nftnl_trace_free(nlt);
+ err:
+-	fflush(stdout);
+ 	return MNL_CB_OK;
+ }
+ 
+@@ -576,6 +575,7 @@ static int monitor_cb(const struct nlmsghdr *nlh, void *data)
+ 		break;
+ 	}
+ 
++	fflush(stdout);
+ 	return ret;
+ }
+ 

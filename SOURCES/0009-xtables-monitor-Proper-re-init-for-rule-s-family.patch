@@ -1,0 +1,51 @@
+From 78cc3761b83a08b6782dfa52887fbd8c9c28bf61 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Wed, 14 Aug 2024 14:30:11 +0200
+Subject: [PATCH] xtables-monitor: Proper re-init for rule's family
+
+JIRA: https://issues.redhat.com/browse/RHEL-47264
+Upstream Status: iptables commit a5e7f9d14ee404544e2751232e69f993b16e7396
+
+commit a5e7f9d14ee404544e2751232e69f993b16e7396
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Fri Jul 12 12:49:22 2024 +0200
+
+    xtables-monitor: Proper re-init for rule's family
+
+    When not running for a specific family only (via -4/-6 flags),
+    xtables-monitor potentially sees events/traces for all families. To
+    correctly parse rules when printing for NEWRULE, DELRULE or TRACE
+    messages, nft_handle has to be reinitialized for the rule's family.
+
+    It is not sufficient to reset nft_handle::ops: Some expression parsers
+    rely upon nft_handle::family to be properly set, too (cf. references to
+    'ctx->h->family in nft-ruleparse.c). Adjusting the 'afinfo' pointer
+    provided by libxtables is even more crucial, as e.g. do_parse() in
+    xshared.c relies upon it for the proper optstring.
+
+    This is actually a day-1 bug in xtables-monitor which surfaced due to
+    commit 9075c3aa983d9 ("nft: Increase rule parser strictness"). Therefore
+    make this fix the commit it is following-up.
+
+    Fixes: ca69b0290dc50 ("xtables-monitor: Fix ip6tables rule printing")
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ iptables/xtables-monitor.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/iptables/xtables-monitor.c b/iptables/xtables-monitor.c
+index cf2729d..cf92355 100644
+--- a/iptables/xtables-monitor.c
++++ b/iptables/xtables-monitor.c
+@@ -92,7 +92,9 @@ static int rule_cb(const struct nlmsghdr *nlh, void *data)
+ 	if (arg->nfproto && arg->nfproto != family)
+ 		goto err_free;
+ 
++	xtables_set_nfproto(family);
+ 	arg->h->ops = nft_family_ops_lookup(family);
++	arg->h->family = family;
+ 
+ 	if (arg->is_event)
+ 		printf(" EVENT: ");

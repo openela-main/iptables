@@ -1,0 +1,37 @@
+From 8a3ce49b4400b6027367d7b7b11cc8c694c17961 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Wed, 14 Aug 2024 14:30:11 +0200
+Subject: [PATCH] xtables-monitor: Align builtin chain and table output
+
+JIRA: https://issues.redhat.com/browse/RHEL-47264
+Upstream Status: iptables commit 90fb6635c8b7d1ad22108d838105c01c17a5de44
+
+commit 90fb6635c8b7d1ad22108d838105c01c17a5de44
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Fri Jul 12 13:37:12 2024 +0200
+
+    xtables-monitor: Align builtin chain and table output
+
+    Drop the leading hash sign and add "NEW/DEL chain" annotation.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ iptables/xtables-monitor.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/iptables/xtables-monitor.c b/iptables/xtables-monitor.c
+index 90d1cc5..e136e9b 100644
+--- a/iptables/xtables-monitor.c
++++ b/iptables/xtables-monitor.c
+@@ -153,7 +153,8 @@ static int chain_cb(const struct nlmsghdr *nlh, void *data)
+ 		break;
+ 	default:
+ 		nftnl_chain_snprintf(buf, sizeof(buf), c, NFTNL_OUTPUT_DEFAULT, 0);
+-		printf("# nft: %s\n", buf);
++		printf("nft: %s chain: %s\n",
++		       type == NFT_MSG_NEWCHAIN ? "NEW" : "DEL", buf);
+ 		goto err_free;
+ 	}
+ 

@@ -1,0 +1,38 @@
+From 3ca04d4228f6f1e1d604cd4810e79a19c4ab5400 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Wed, 14 Aug 2024 14:30:11 +0200
+Subject: [PATCH] xtables-monitor: Support arptables chain events
+
+JIRA: https://issues.redhat.com/browse/RHEL-47264
+Upstream Status: iptables commit de18b0da0312b81698c1dee76b1a36c47aed52d7
+
+commit de18b0da0312b81698c1dee76b1a36c47aed52d7
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Fri Jul 12 15:48:49 2024 +0200
+
+    xtables-monitor: Support arptables chain events
+
+    Print arptables NEWCHAIN/DELCHAIN events just like for iptables, using
+    the '-0' prefix rule callback already uses.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ iptables/xtables-monitor.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/iptables/xtables-monitor.c b/iptables/xtables-monitor.c
+index e136e9b..714a2df 100644
+--- a/iptables/xtables-monitor.c
++++ b/iptables/xtables-monitor.c
+@@ -151,6 +151,9 @@ static int chain_cb(const struct nlmsghdr *nlh, void *data)
+ 	case NFPROTO_IPV6:
+ 		family = 6;
+ 		break;
++	case NFPROTO_ARP:
++		family = 0;
++		break;
+ 	default:
+ 		nftnl_chain_snprintf(buf, sizeof(buf), c, NFTNL_OUTPUT_DEFAULT, 0);
+ 		printf("nft: %s chain: %s\n",

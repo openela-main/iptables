@@ -1,5 +1,5 @@
 %define iptables_rpmversion 1.8.10
-%define iptables_specrelease 4
+%define iptables_specrelease 11
 
 # install init scripts to /usr/libexec with systemd
 %global script_path %{_libexecdir}/iptables
@@ -12,8 +12,6 @@
 
 # build legacy sub-packages only on non-rhel distributions
 %global do_legacy_pkg ! 0%{?rhel}
-
-%define _unpackaged_files_terminate_build 0
 
 Name: iptables
 Summary: Tools for managing Linux kernel packet filtering capabilities
@@ -38,6 +36,18 @@ Patch2:             0002-extensions-SECMARK-Use-a-better-context-in-test-case.pa
 Patch3:             0003-ebtables-Fix-corner-case-noflush-restore-bug.patch
 Patch4:             0004-nft-Fix-for-broken-recover_rule_compat.patch
 Patch5:             0005-extensions-libxt_sctp-Add-an-extra-assert.patch
+Patch6:             0006-nft-Fix-for-zeroing-non-existent-builtin-chains.patch
+Patch7:             0007-nft-cache-Annotate-faked-base-chains-as-such.patch
+Patch8:             0008-nft-Fix-for-zeroing-existent-builtin-chains.patch
+Patch9:             0009-xtables-monitor-Proper-re-init-for-rule-s-family.patch
+Patch10:            0010-xtables-monitor-Flush-stdout-after-all-lines-of-outp.patch
+Patch11:            0011-xtables-monitor-Align-builtin-chain-and-table-output.patch
+Patch12:            0012-xtables-monitor-Support-arptables-chain-events.patch
+Patch13:            0013-tests-shell-New-xtables-monitor-test.patch
+Patch14:            0014-xtables-monitor-Fix-for-ebtables-rule-events.patch
+Patch15:            0015-xtables-monitor-Ignore-ebtables-policy-rules-unless-.patch
+Patch16:            0016-Revert-xshared-Print-protocol-numbers-if-numeric-was.patch
+Patch17:            0017-libxtables-Attenuate-effects-of-functions-internal-s.patch
 
 # pf.os: ISC license
 # iptables-apply: Artistic 2.0
@@ -281,6 +291,25 @@ for fam in ip ip6; do
 	link_ext libxt_NAT lib${fam}t_MASQUERADE
 done
 
+# turn %ghost'ed installed symlinks into empty files,
+# otherwise builds will fail on c9s
+for f in %{buildroot}%{_sbindir}/ip{,6}tables{,-restore,-save}; do
+	[[ -L "$f" ]] && rm "$f"
+	touch "$f"
+done
+
+%if ! %{do_legacy_pkg}
+rm %{buildroot}%{_bindir}/iptables-xml
+rm -r %{buildroot}%{_includedir}/libiptc
+rm %{buildroot}%{_libdir}/libip{4,6}tc.so*
+rm %{buildroot}%{_libdir}/pkgconfig/libip{4,6,}tc.pc
+rm %{buildroot}%{_sbindir}/ip{,6}tables-legacy*
+rm %{buildroot}%{_sbindir}/xtables-legacy-multi
+rm %{buildroot}%{_mandir}/man1/iptables-xml.1*
+rm %{buildroot}%{_mandir}/man8/xtables-legacy.8*
+rm %{buildroot}%{_datadir}/xtables/iptables.xslt
+%endif
+
 %ldconfig_scriptlets
 
 %post legacy
@@ -472,6 +501,36 @@ fi
 %ghost %{_mandir}/man8/ebtables{,-translate}.8.gz
 
 %changelog
+* Mon Dec 23 2024 Phil Sutter <psutter@redhat.com> [1.8.10-11.el9]
+- libxtables: Attenuate effects of functions' internal static buffers (Phil Sutter) [RHEL-72027]
+
+* Sun Dec 22 2024 Phil Sutter <psutter@redhat.com> [1.8.10-10.el9]
+- spec: Fix build on c9s (Phil Sutter) [RHEL-72005]
+
+* Sun Dec 22 2024 Phil Sutter <psutter@redhat.com> [1.8.10-9.el9]
+- spec: Explicitly remove unpackaged files (Michel Lind) [RHEL-72005]
+
+* Thu Dec 05 2024 Phil Sutter <psutter@redhat.com> [1.8.10-8.el9]
+- Revert "xshared: Print protocol numbers if --numeric was given" (Phil Sutter) [RHEL-70173]
+
+* Wed Nov 27 2024 Phil Sutter <psutter@redhat.com> [1.8.10-7.el9]
+- Bump release for side-tag (Phil Sutter) [RHEL-69283 RHEL-69284]
+
+* Wed Nov 27 2024 Phil Sutter <psutter@redhat.com> [1.8.10-6.el9]
+- Bump release for RHEL-9.5.z (Phil Sutter) [RHEL-69283 RHEL-69284]
+
+* Wed Aug 14 2024 Phil Sutter <psutter@redhat.com> [1.8.10-5.el9]
+- xtables-monitor: Ignore ebtables policy rules unless tracing (Phil Sutter) [RHEL-47264]
+- xtables-monitor: Fix for ebtables rule events (Phil Sutter) [RHEL-47264]
+- tests: shell: New xtables-monitor test (Phil Sutter) [RHEL-47264]
+- xtables-monitor: Support arptables chain events (Phil Sutter) [RHEL-47264]
+- xtables-monitor: Align builtin chain and table output (Phil Sutter) [RHEL-47264]
+- xtables-monitor: Flush stdout after all lines of output (Phil Sutter) [RHEL-47264]
+- xtables-monitor: Proper re-init for rule's family (Phil Sutter) [RHEL-47264]
+- nft: Fix for zeroing existent builtin chains (Phil Sutter) [RHEL-49497]
+- nft: cache: Annotate faked base chains as such (Phil Sutter) [RHEL-49497]
+- nft: Fix for zeroing non-existent builtin chains (Phil Sutter) [RHEL-49497]
+
 * Wed Jul 03 2024 Phil Sutter <psutter@redhat.com> [1.8.10-4.el9]
 - spec: Simplify legacy package integration (Phil Sutter) [RHEL-5797]
 

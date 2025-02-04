@@ -1,0 +1,46 @@
+From 5766ffbf98583fcc50f3607850d63bb0e87d4abe Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Wed, 14 Aug 2024 14:23:33 +0200
+Subject: [PATCH] nft: Fix for zeroing existent builtin chains
+
+JIRA: https://issues.redhat.com/browse/RHEL-49497
+Upstream Status: iptables commit 6a2aeda7585e07c0fcccb0c788299ab5a6a85881
+
+commit 6a2aeda7585e07c0fcccb0c788299ab5a6a85881
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Sat Jul 27 16:04:31 2024 +0200
+
+    nft: Fix for zeroing existent builtin chains
+
+    Previous attempt at fixing for non-existent chains actually broke
+    functionality by adding a check for NFTNL_CHAIN_HANDLE right after
+    unsetting the attribute.
+
+    The approach was flawed for another reason, too: Base chains added in
+    the same batch (cf. iptables-restore) have no handle either but zeroing
+    them may still be sensible.
+
+    Instead, make use of the new fake chain annotation which identifies
+    fakes more reliably.
+
+    Fixes: f462975fb8049 ("nft: Fix for zeroing non-existent builtin chains")
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ iptables/nft.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/iptables/nft.c b/iptables/nft.c
+index aa4b3f2..ad4c866 100644
+--- a/iptables/nft.c
++++ b/iptables/nft.c
+@@ -3784,7 +3784,7 @@ static int __nft_chain_zero_counters(struct nft_chain *nc, void *data)
+ 		if (!o)
+ 			return -1;
+ 		/* may skip if it is a fake entry */
+-		o->skip = !nftnl_chain_is_set(c, NFTNL_CHAIN_HANDLE);
++		o->skip = nc->fake;
+ 	}
+ 
+ 	iter = nftnl_rule_iter_create(c);

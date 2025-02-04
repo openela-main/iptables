@@ -1,0 +1,193 @@
+From 82ad0504599d894e62dff2e062cb4d6093ce12a5 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Wed, 14 Aug 2024 14:23:33 +0200
+Subject: [PATCH] nft: cache: Annotate faked base chains as such
+
+JIRA: https://issues.redhat.com/browse/RHEL-49497
+Upstream Status: iptables commit f65d1e9a216468d5287fa05894a08e29c0fc8278
+
+commit f65d1e9a216468d5287fa05894a08e29c0fc8278
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Sat Jul 27 19:13:40 2024 +0200
+
+    nft: cache: Annotate faked base chains as such
+
+    To avoid pointless kernel ruleset modifications without too many
+    workarounds in user space, code sometimes adds "fake" base chains to
+    cache. Yet these fake entries happen to prevent base chain creation for
+    a following command which actually requires them. Fix this by annotating
+    the fake entries as such so *_builtin_init() functions may convert them
+    into real ones.
+
+    Fixes: fd4b9bf08b9eb ("nft: Avoid pointless table/chain creation")
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ iptables/nft-cache.c |  6 +++---
+ iptables/nft-cache.h |  2 +-
+ iptables/nft-chain.c |  3 ++-
+ iptables/nft-chain.h |  3 ++-
+ iptables/nft.c       | 31 ++++++++++++++++++++-----------
+ 5 files changed, 28 insertions(+), 17 deletions(-)
+
+diff --git a/iptables/nft-cache.c b/iptables/nft-cache.c
+index 91d2967..da2d4d7 100644
+--- a/iptables/nft-cache.c
++++ b/iptables/nft-cache.c
+@@ -244,10 +244,10 @@ nft_cache_add_base_chain(struct nft_handle *h, const struct builtin_table *t,
+ }
+ 
+ int nft_cache_add_chain(struct nft_handle *h, const struct builtin_table *t,
+-			struct nftnl_chain *c)
++			struct nftnl_chain *c, bool fake)
+ {
+ 	const char *cname = nftnl_chain_get_str(c, NFTNL_CHAIN_NAME);
+-	struct nft_chain *nc = nft_chain_alloc(c);
++	struct nft_chain *nc = nft_chain_alloc(c, fake);
+ 	int ret;
+ 
+ 	if (nftnl_chain_is_set(c, NFTNL_CHAIN_HOOKNUM)) {
+@@ -349,7 +349,7 @@ static int nftnl_chain_list_cb(const struct nlmsghdr *nlh, void *data)
+ 		goto out;
+ 	}
+ 
+-	nft_cache_add_chain(h, t, c);
++	nft_cache_add_chain(h, t, c, false);
+ 	return MNL_CB_OK;
+ out:
+ 	nftnl_chain_free(c);
+diff --git a/iptables/nft-cache.h b/iptables/nft-cache.h
+index 29ec6b5..e9f5755 100644
+--- a/iptables/nft-cache.h
++++ b/iptables/nft-cache.h
+@@ -17,7 +17,7 @@ int flush_rule_cache(struct nft_handle *h, const char *table,
+ 		     struct nft_chain *c);
+ void nft_cache_build(struct nft_handle *h);
+ int nft_cache_add_chain(struct nft_handle *h, const struct builtin_table *t,
+-			struct nftnl_chain *c);
++			struct nftnl_chain *c, bool fake);
+ int nft_cache_sort_chains(struct nft_handle *h, const char *table);
+ 
+ struct nft_chain *
+diff --git a/iptables/nft-chain.c b/iptables/nft-chain.c
+index e954170..c24e6c9 100644
+--- a/iptables/nft-chain.c
++++ b/iptables/nft-chain.c
+@@ -12,12 +12,13 @@
+ 
+ #include "nft-chain.h"
+ 
+-struct nft_chain *nft_chain_alloc(struct nftnl_chain *nftnl)
++struct nft_chain *nft_chain_alloc(struct nftnl_chain *nftnl, bool fake)
+ {
+ 	struct nft_chain *c = xtables_malloc(sizeof(*c));
+ 
+ 	INIT_LIST_HEAD(&c->head);
+ 	c->nftnl = nftnl;
++	c->fake = fake;
+ 
+ 	return c;
+ }
+diff --git a/iptables/nft-chain.h b/iptables/nft-chain.h
+index 9adf173..166504c 100644
+--- a/iptables/nft-chain.h
++++ b/iptables/nft-chain.h
+@@ -11,6 +11,7 @@ struct nft_chain {
+ 	struct hlist_node	hnode;
+ 	struct nft_chain	**base_slot;
+ 	struct nftnl_chain	*nftnl;
++	bool			fake;
+ };
+ 
+ #define CHAIN_NAME_HSIZE	512
+@@ -20,7 +21,7 @@ struct nft_chain_list {
+ 	struct hlist_head	names[CHAIN_NAME_HSIZE];
+ };
+ 
+-struct nft_chain *nft_chain_alloc(struct nftnl_chain *nftnl);
++struct nft_chain *nft_chain_alloc(struct nftnl_chain *nftnl, bool fake);
+ void nft_chain_free(struct nft_chain *c);
+ 
+ struct nft_chain_list *nft_chain_list_alloc(void);
+diff --git a/iptables/nft.c b/iptables/nft.c
+index 82eab48..aa4b3f2 100644
+--- a/iptables/nft.c
++++ b/iptables/nft.c
+@@ -720,7 +720,7 @@ static void nft_chain_builtin_add(struct nft_handle *h,
+ 
+ 	if (!fake)
+ 		batch_chain_add(h, NFT_COMPAT_CHAIN_ADD, c);
+-	nft_cache_add_chain(h, table, c);
++	nft_cache_add_chain(h, table, c, fake);
+ }
+ 
+ /* find if built-in table already exists */
+@@ -764,14 +764,19 @@ nft_chain_builtin_find(const struct builtin_table *t, const char *chain)
+ static void nft_chain_builtin_init(struct nft_handle *h,
+ 				   const struct builtin_table *table)
+ {
++	struct nft_chain *c;
+ 	int i;
+ 
+ 	/* Initialize built-in chains if they don't exist yet */
+ 	for (i=0; i < NF_INET_NUMHOOKS && table->chains[i].name != NULL; i++) {
+-		if (nft_chain_find(h, table->name, table->chains[i].name))
+-			continue;
+-
+-		nft_chain_builtin_add(h, table, &table->chains[i], false);
++		c = nft_chain_find(h, table->name, table->chains[i].name);
++		if (!c) {
++			nft_chain_builtin_add(h, table,
++					      &table->chains[i], false);
++		} else if (c->fake) {
++			batch_chain_add(h, NFT_COMPAT_CHAIN_ADD, c->nftnl);
++			c->fake = false;
++		}
+ 	}
+ }
+ 
+@@ -798,6 +803,7 @@ static int nft_xt_builtin_init(struct nft_handle *h, const char *table,
+ {
+ 	const struct builtin_table *t;
+ 	const struct builtin_chain *c;
++	struct nft_chain *nc;
+ 
+ 	if (!h->cache_init)
+ 		return 0;
+@@ -818,10 +824,13 @@ static int nft_xt_builtin_init(struct nft_handle *h, const char *table,
+ 	if (!c)
+ 		return -1;
+ 
+-	if (h->cache->table[t->type].base_chains[c->hook])
+-		return 0;
+-
+-	nft_chain_builtin_add(h, t, c, false);
++	nc = h->cache->table[t->type].base_chains[c->hook];
++	if (!nc) {
++		nft_chain_builtin_add(h, t, c, false);
++	} else if (nc->fake) {
++		batch_chain_add(h, NFT_COMPAT_CHAIN_ADD, nc->nftnl);
++		nc->fake = false;
++	}
+ 	return 0;
+ }
+ 
+@@ -2092,7 +2101,7 @@ int nft_chain_user_add(struct nft_handle *h, const char *chain, const char *tabl
+ 	if (!batch_chain_add(h, NFT_COMPAT_CHAIN_USER_ADD, c))
+ 		return 0;
+ 
+-	nft_cache_add_chain(h, t, c);
++	nft_cache_add_chain(h, t, c, false);
+ 
+ 	/* the core expects 1 for success and 0 for error */
+ 	return 1;
+@@ -2119,7 +2128,7 @@ int nft_chain_restore(struct nft_handle *h, const char *chain, const char *table
+ 		nftnl_chain_set_str(c, NFTNL_CHAIN_NAME, chain);
+ 		created = true;
+ 
+-		nft_cache_add_chain(h, t, c);
++		nft_cache_add_chain(h, t, c, false);
+ 	} else {
+ 		c = nc->nftnl;
+ 

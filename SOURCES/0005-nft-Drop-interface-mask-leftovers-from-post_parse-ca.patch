@@ -1,0 +1,72 @@
+From c940eb159386586febce381144e966d053dd7337 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Tue, 19 Nov 2024 23:57:41 +0100
+Subject: [PATCH] nft: Drop interface mask leftovers from post_parse callbacks
+
+JIRA: https://issues.redhat.com/browse/RHEL-66725
+Upstream Status: iptables commit b3f3e256c263b9a1db49732696aba0dde084ef5e
+
+commit b3f3e256c263b9a1db49732696aba0dde084ef5e
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Fri Nov 15 19:55:32 2024 +0100
+
+    nft: Drop interface mask leftovers from post_parse callbacks
+
+    Fixed commit only adjusted the IPv4-specific callback for unclear
+    reasons.
+
+    Fixes: fe70364b36119 ("xshared: Do not populate interface masks per default")
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+    Reviewed-by: Jeremy Sowden <jeremy@azazel.net>
+
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ iptables/nft-arp.c | 3 ---
+ iptables/xshared.c | 5 -----
+ iptables/xshared.h | 1 -
+ 3 files changed, 9 deletions(-)
+
+diff --git a/iptables/nft-arp.c b/iptables/nft-arp.c
+index c11d64c..fa2dd55 100644
+--- a/iptables/nft-arp.c
++++ b/iptables/nft-arp.c
+@@ -459,10 +459,7 @@ static void nft_arp_post_parse(int command,
+ 	cs->arp.arp.invflags = args->invflags;
+ 
+ 	memcpy(cs->arp.arp.iniface, args->iniface, IFNAMSIZ);
+-	memcpy(cs->arp.arp.iniface_mask, args->iniface_mask, IFNAMSIZ);
+-
+ 	memcpy(cs->arp.arp.outiface, args->outiface, IFNAMSIZ);
+-	memcpy(cs->arp.arp.outiface_mask, args->outiface_mask, IFNAMSIZ);
+ 
+ 	cs->arp.counters.pcnt = args->pcnt_cnt;
+ 	cs->arp.counters.bcnt = args->bcnt_cnt;
+diff --git a/iptables/xshared.c b/iptables/xshared.c
+index 2a5eef0..2f663f9 100644
+--- a/iptables/xshared.c
++++ b/iptables/xshared.c
+@@ -2104,12 +2104,7 @@ void ipv6_post_parse(int command, struct iptables_command_state *cs,
+ 	cs->fw6.ipv6.invflags = args->invflags;
+ 
+ 	memcpy(cs->fw6.ipv6.iniface, args->iniface, IFNAMSIZ);
+-	memcpy(cs->fw6.ipv6.iniface_mask,
+-	       args->iniface_mask, IFNAMSIZ*sizeof(unsigned char));
+-
+ 	memcpy(cs->fw6.ipv6.outiface, args->outiface, IFNAMSIZ);
+-	memcpy(cs->fw6.ipv6.outiface_mask,
+-	       args->outiface_mask, IFNAMSIZ*sizeof(unsigned char));
+ 
+ 	if (args->goto_set)
+ 		cs->fw6.ipv6.flags |= IP6T_F_GOTO;
+diff --git a/iptables/xshared.h b/iptables/xshared.h
+index a111e79..af75673 100644
+--- a/iptables/xshared.h
++++ b/iptables/xshared.h
+@@ -262,7 +262,6 @@ struct xtables_args {
+ 	uint8_t		flags;
+ 	uint16_t	invflags;
+ 	char		iniface[IFNAMSIZ], outiface[IFNAMSIZ];
+-	unsigned char	iniface_mask[IFNAMSIZ], outiface_mask[IFNAMSIZ];
+ 	char		bri_iniface[IFNAMSIZ], bri_outiface[IFNAMSIZ];
+ 	bool		goto_set;
+ 	const char	*shostnetworkmask, *dhostnetworkmask;

@@ -1,0 +1,40 @@
+From 83c3c9db46af8f1146fcd1dbc5a110a183610b24 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Wed, 23 Apr 2025 23:17:04 +0200
+Subject: [PATCH] xshared: Accept an option if any given command allows it
+
+JIRA: https://issues.redhat.com/browse/RHEL-72061
+Upstream Status: iptables commit 192c3a6bc18f206895ec5e38812d648ccfe7e281
+
+commit 192c3a6bc18f206895ec5e38812d648ccfe7e281
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Wed Apr 23 12:36:13 2025 +0200
+
+    xshared: Accept an option if any given command allows it
+
+    Fixed commit made option checking overly strict: Some commands may be
+    commbined (foremost --list and --zero), reject a given option only if it
+    is not allowed by any of the given commands.
+
+    Reported-by: Adam Nielsen <a.nielsen@shikadi.net>
+    Fixes: 9c09d28102bb4 ("xshared: Simplify generic_opt_check()")
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ iptables/xshared.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/iptables/xshared.c b/iptables/xshared.c
+index 2f663f9..b941b8d 100644
+--- a/iptables/xshared.c
++++ b/iptables/xshared.c
+@@ -980,7 +980,7 @@ static void generic_opt_check(struct xt_cmd_parse_ops *ops,
+ 	 */
+ 	for (i = 0, optval = 1; i < NUMBER_OF_OPT; optval = (1 << ++i)) {
+ 		if ((options & optval) &&
+-		    (options_v_commands[i] & command) != command)
++		    !(options_v_commands[i] & command))
+ 			xtables_error(PARAMETER_PROBLEM,
+ 				      "Illegal option `%s' with this command",
+ 				      ops->option_name(optval));

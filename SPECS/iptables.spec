@@ -14,7 +14,7 @@ Name: iptables
 Summary: Tools for managing Linux kernel packet filtering capabilities
 URL: https://www.netfilter.org/projects/iptables
 Version: 1.8.11
-Release: 9%{?dist}
+Release: 11%{?dist}
 Source: %{url}/files/%{name}-%{version}.tar.xz
 Source1: iptables.init
 Source2: iptables-config
@@ -35,6 +35,7 @@ Patch4:             0004-nft-fix-interface-comparisons-in-C-commands.patch
 Patch5:             0005-nft-Drop-interface-mask-leftovers-from-post_parse-ca.patch
 Patch6:             0006-extensions-icmp-Support-info-request-reply-type-name.patch
 Patch7:             0007-xshared-Accept-an-option-if-any-given-command-allows.patch
+Patch8:             0008-extensions-sctp-Translate-bare-m-sctp-match.patch
 
 # pf.os: ISC license
 # iptables-apply: Artistic Licence 2.0
@@ -71,14 +72,7 @@ you should install this package.
 Summary: Legacy tools for managing Linux kernel packet filtering capabilities
 Requires: %{name}-legacy-libs%{?_isa} = %{version}-%{release}
 Requires: %{name}-libs%{?_isa} = %{version}-%{release}
-Requires: (kernel-modules-extra if kernel-core)
-Requires: (kernel-rt-modules-extra if kernel-rt-core)
-Requires: (kernel-64k-modules-extra if kernel-64k-core)
-Requires: (kernel-rt-64k-modules-extra if kernel-rt-64k-core)
-Requires: (kernel-debug-modules-extra if kernel-debug-core)
-Requires: (kernel-rt-debug-modules-extra if kernel-rt-debug-core)
-Requires: (kernel-64k-debug-modules-extra if kernel-64k-debug-core)
-Requires: (kernel-rt-64k-debug-modules-extra if kernel-rt-64k-debug-core)
+Requires: kernel-modules-extra-matched
 Conflicts: setup < 2.10.4-1
 Requires(post): %{_sbindir}/update-alternatives
 Requires(postun): %{_sbindir}/update-alternatives
@@ -203,14 +197,7 @@ a safer way to update iptables remotely.
 %package nft
 Summary: nftables compatibility for iptables, arptables and ebtables
 Requires: %{name}-libs%{?_isa} = %{version}-%{release}
-Requires: (kernel-modules-extra if kernel-core)
-Requires: (kernel-rt-modules-extra if kernel-rt-core)
-Requires: (kernel-64k-modules-extra if kernel-64k-core)
-Requires: (kernel-rt-64k-modules-extra if kernel-rt-64k-core)
-Requires: (kernel-debug-modules-extra if kernel-debug-core)
-Requires: (kernel-rt-debug-modules-extra if kernel-rt-debug-core)
-Requires: (kernel-64k-debug-modules-extra if kernel-64k-debug-core)
-Requires: (kernel-rt-64k-debug-modules-extra if kernel-rt-64k-debug-core)
+Requires: kernel-modules-extra-matched
 Requires(post): %{_sbindir}/update-alternatives
 Requires(post): %{_bindir}/readlink
 Requires(postun): %{_sbindir}/update-alternatives
@@ -534,6 +521,12 @@ fi
 %ghost %{_mandir}/man8/ebtables.8.gz
 
 %changelog
+* Tue Jul 15 2025 Phil Sutter <psutter@redhat.com> [1.8.11-11.el10]
+- extensions: sctp: Translate bare '-m sctp' match (Phil Sutter) [RHEL-101502]
+
+* Wed Jun 04 2025 Phil Sutter <psutter@redhat.com> [1.8.11-10.el10]
+- spec: Require kernel-modules-extra-matched meta package (Phil Sutter) [RHEL-87455]
+
 * Wed Apr 23 2025 Phil Sutter <psutter@redhat.com> [1.8.11-9.el10]
 - xshared: Accept an option if any given command allows it (Phil Sutter) [RHEL-72061]
 - extensions: icmp: Support info-request/-reply type names (Phil Sutter) [RHEL-85286]

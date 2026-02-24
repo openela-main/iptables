@@ -14,7 +14,7 @@ Name: iptables
 Summary: Tools for managing Linux kernel packet filtering capabilities
 URL: https://www.netfilter.org/projects/iptables
 Version: 1.8.11
-Release: 11%{?dist}
+Release: 12%{?dist}
 Source: %{url}/files/%{name}-%{version}.tar.xz
 Source1: iptables.init
 Source2: iptables-config
@@ -72,7 +72,14 @@ you should install this package.
 Summary: Legacy tools for managing Linux kernel packet filtering capabilities
 Requires: %{name}-legacy-libs%{?_isa} = %{version}-%{release}
 Requires: %{name}-libs%{?_isa} = %{version}-%{release}
-Requires: kernel-modules-extra-matched
+Requires: (kernel-modules-extra if kernel-core)
+Requires: (kernel-rt-modules-extra if kernel-rt-core)
+Requires: (kernel-64k-modules-extra if kernel-64k-core)
+Requires: (kernel-rt-64k-modules-extra if kernel-rt-64k-core)
+Requires: (kernel-debug-modules-extra if kernel-debug-core)
+Requires: (kernel-rt-debug-modules-extra if kernel-rt-debug-core)
+Requires: (kernel-64k-debug-modules-extra if kernel-64k-debug-core)
+Requires: (kernel-rt-64k-debug-modules-extra if kernel-rt-64k-debug-core)
 Conflicts: setup < 2.10.4-1
 Requires(post): %{_sbindir}/update-alternatives
 Requires(postun): %{_sbindir}/update-alternatives
@@ -197,7 +204,14 @@ a safer way to update iptables remotely.
 %package nft
 Summary: nftables compatibility for iptables, arptables and ebtables
 Requires: %{name}-libs%{?_isa} = %{version}-%{release}
-Requires: kernel-modules-extra-matched
+Requires: (kernel-modules-extra if kernel-core)
+Requires: (kernel-rt-modules-extra if kernel-rt-core)
+Requires: (kernel-64k-modules-extra if kernel-64k-core)
+Requires: (kernel-rt-64k-modules-extra if kernel-rt-64k-core)
+Requires: (kernel-debug-modules-extra if kernel-debug-core)
+Requires: (kernel-rt-debug-modules-extra if kernel-rt-debug-core)
+Requires: (kernel-64k-debug-modules-extra if kernel-64k-debug-core)
+Requires: (kernel-rt-64k-debug-modules-extra if kernel-rt-64k-debug-core)
 Requires(post): %{_sbindir}/update-alternatives
 Requires(post): %{_bindir}/readlink
 Requires(postun): %{_sbindir}/update-alternatives
@@ -521,6 +535,9 @@ fi
 %ghost %{_mandir}/man8/ebtables.8.gz
 
 %changelog
+* Thu Nov 27 2025 Phil Sutter <psutter@redhat.com> [1.8.11-12.el10]
+- Revert "spec: Require kernel-modules-extra-matched meta package" (Phil Sutter) [RHEL-127030]
+
 * Tue Jul 15 2025 Phil Sutter <psutter@redhat.com> [1.8.11-11.el10]
 - extensions: sctp: Translate bare '-m sctp' match (Phil Sutter) [RHEL-101502]
 

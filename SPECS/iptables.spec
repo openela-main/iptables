@@ -14,7 +14,7 @@ Name: iptables
 Summary: Tools for managing Linux kernel packet filtering capabilities
 URL: https://www.netfilter.org/projects/iptables
 Version: 1.8.11
-Release: 13%{?dist}
+Release: 15%{?dist}
 Source: %{url}/files/%{name}-%{version}.tar.xz
 Source1: iptables.init
 Source2: iptables-config
@@ -36,6 +36,7 @@ Patch5:             0005-nft-Drop-interface-mask-leftovers-from-post_parse-ca.pa
 Patch6:             0006-extensions-icmp-Support-info-request-reply-type-name.patch
 Patch7:             0007-xshared-Accept-an-option-if-any-given-command-allows.patch
 Patch8:             0008-extensions-sctp-Translate-bare-m-sctp-match.patch
+Patch9:             0009-tests-shell-Review-nft-only-0009-needless-bitwise_0.patch
 
 # pf.os: ISC license
 # iptables-apply: Artistic Licence 2.0
@@ -72,14 +73,15 @@ you should install this package.
 Summary: Legacy tools for managing Linux kernel packet filtering capabilities
 Requires: %{name}-legacy-libs%{?_isa} = %{version}-%{release}
 Requires: %{name}-libs%{?_isa} = %{version}-%{release}
-Requires: (kernel-modules-extra if kernel-modules-core)
-Requires: (kernel-rt-modules-extra if kernel-rt-modules-core)
-Requires: (kernel-64k-modules-extra if kernel-64k-modules-core)
-Requires: (kernel-rt-64k-modules-extra if kernel-rt-64k-modules-core)
-Requires: (kernel-debug-modules-extra if kernel-debug-modules-core)
-Requires: (kernel-rt-debug-modules-extra if kernel-rt-debug-modules-core)
-Requires: (kernel-64k-debug-modules-extra if kernel-64k-debug-modules-core)
-Requires: (kernel-rt-64k-debug-modules-extra if kernel-rt-64k-debug-modules-core)
+# XXX: All kernel-*-modules-core packages provide kernel-modules-core
+Recommends: (kernel-modules-extra if (kernel-modules-core unless (kernel-debug-modules-core or kernel-rt-modules-core or kernel-rt-debug-modules-core or kernel-64k-modules-core or kernel-64k-debug-modules-core or kernel-rt-64k-modules-core or kernel-rt-64k-debug-modules-core)))
+Recommends: (kernel-rt-modules-extra if kernel-rt-modules-core)
+Recommends: (kernel-64k-modules-extra if kernel-64k-modules-core)
+Recommends: (kernel-rt-64k-modules-extra if kernel-rt-64k-modules-core)
+Recommends: (kernel-debug-modules-extra if kernel-debug-modules-core)
+Recommends: (kernel-rt-debug-modules-extra if kernel-rt-debug-modules-core)
+Recommends: (kernel-64k-debug-modules-extra if kernel-64k-debug-modules-core)
+Recommends: (kernel-rt-64k-debug-modules-extra if kernel-rt-64k-debug-modules-core)
 Conflicts: setup < 2.10.4-1
 Requires(post): %{_sbindir}/update-alternatives
 Requires(postun): %{_sbindir}/update-alternatives
@@ -204,14 +206,15 @@ a safer way to update iptables remotely.
 %package nft
 Summary: nftables compatibility for iptables, arptables and ebtables
 Requires: %{name}-libs%{?_isa} = %{version}-%{release}
-Requires: (kernel-modules-extra if kernel-modules-core)
-Requires: (kernel-rt-modules-extra if kernel-rt-modules-core)
-Requires: (kernel-64k-modules-extra if kernel-64k-modules-core)
-Requires: (kernel-rt-64k-modules-extra if kernel-rt-64k-modules-core)
-Requires: (kernel-debug-modules-extra if kernel-debug-modules-core)
-Requires: (kernel-rt-debug-modules-extra if kernel-rt-debug-modules-core)
-Requires: (kernel-64k-debug-modules-extra if kernel-64k-debug-modules-core)
-Requires: (kernel-rt-64k-debug-modules-extra if kernel-rt-64k-debug-modules-core)
+# XXX: All kernel-*-modules-core packages provide kernel-modules-core
+Recommends: (kernel-modules-extra if (kernel-modules-core unless (kernel-debug-modules-core or kernel-rt-modules-core or kernel-rt-debug-modules-core or kernel-64k-modules-core or kernel-64k-debug-modules-core or kernel-rt-64k-modules-core or kernel-rt-64k-debug-modules-core)))
+Recommends: (kernel-rt-modules-extra if kernel-rt-modules-core)
+Recommends: (kernel-64k-modules-extra if kernel-64k-modules-core)
+Recommends: (kernel-rt-64k-modules-extra if kernel-rt-64k-modules-core)
+Recommends: (kernel-debug-modules-extra if kernel-debug-modules-core)
+Recommends: (kernel-rt-debug-modules-extra if kernel-rt-debug-modules-core)
+Recommends: (kernel-64k-debug-modules-extra if kernel-64k-debug-modules-core)
+Recommends: (kernel-rt-64k-debug-modules-extra if kernel-rt-64k-debug-modules-core)
 Requires(post): %{_sbindir}/update-alternatives
 Requires(post): %{_bindir}/readlink
 Requires(postun): %{_sbindir}/update-alternatives
@@ -535,6 +538,13 @@ fi
 %ghost %{_mandir}/man8/ebtables.8.gz
 
 %changelog
+* Thu Jun 18 2026 Phil Sutter <psutter@redhat.com> [1.8.11-15.el10]
+- spec: Recommend kernel-modules-extra only if no other recommendation applies (Phil Sutter) [RHEL-186232]
+
+* Wed May 27 2026 Phil Sutter <psutter@redhat.com> [1.8.11-14.el10]
+- tests: shell: Review nft-only/0009-needless-bitwise_0 (Phil Sutter) [RHEL-179504]
+- spec: Soft-depend on kernel-modules-extra (Phil Sutter) [RHEL-176386]
+
 * Sat Jan 17 2026 Phil Sutter <psutter@redhat.com> [1.8.11-13.el10]
 - spec: Use modules-core for conditional modules-extra dependency (Phil Sutter) [RHEL-141880]
 

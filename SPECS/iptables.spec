@@ -14,7 +14,7 @@ Name: iptables
 Summary: Tools for managing Linux kernel packet filtering capabilities
 URL: https://www.netfilter.org/projects/iptables
 Version: 1.8.11
-Release: 15%{?dist}
+Release: 16%{?dist}
 Source: %{url}/files/%{name}-%{version}.tar.xz
 Source1: iptables.init
 Source2: iptables-config
@@ -73,8 +73,7 @@ you should install this package.
 Summary: Legacy tools for managing Linux kernel packet filtering capabilities
 Requires: %{name}-legacy-libs%{?_isa} = %{version}-%{release}
 Requires: %{name}-libs%{?_isa} = %{version}-%{release}
-# XXX: All kernel-*-modules-core packages provide kernel-modules-core
-Recommends: (kernel-modules-extra if (kernel-modules-core unless (kernel-debug-modules-core or kernel-rt-modules-core or kernel-rt-debug-modules-core or kernel-64k-modules-core or kernel-64k-debug-modules-core or kernel-rt-64k-modules-core or kernel-rt-64k-debug-modules-core)))
+Recommends: (kernel-modules-extra if kernel-modules-core)
 Recommends: (kernel-rt-modules-extra if kernel-rt-modules-core)
 Recommends: (kernel-64k-modules-extra if kernel-64k-modules-core)
 Recommends: (kernel-rt-64k-modules-extra if kernel-rt-64k-modules-core)
@@ -206,8 +205,7 @@ a safer way to update iptables remotely.
 %package nft
 Summary: nftables compatibility for iptables, arptables and ebtables
 Requires: %{name}-libs%{?_isa} = %{version}-%{release}
-# XXX: All kernel-*-modules-core packages provide kernel-modules-core
-Recommends: (kernel-modules-extra if (kernel-modules-core unless (kernel-debug-modules-core or kernel-rt-modules-core or kernel-rt-debug-modules-core or kernel-64k-modules-core or kernel-64k-debug-modules-core or kernel-rt-64k-modules-core or kernel-rt-64k-debug-modules-core)))
+Recommends: (kernel-modules-extra if kernel-modules-core)
 Recommends: (kernel-rt-modules-extra if kernel-rt-modules-core)
 Recommends: (kernel-64k-modules-extra if kernel-64k-modules-core)
 Recommends: (kernel-rt-64k-modules-extra if kernel-rt-64k-modules-core)
@@ -538,6 +536,9 @@ fi
 %ghost %{_mandir}/man8/ebtables.8.gz
 
 %changelog
+* Tue Aug 04 2026 Phil Sutter <psutter@redhat.com> [1.8.11-16.el10]
+- spec: Simplify Recommends again, kernel fixed Provides in modules-core packages (Phil Sutter) [RHEL-213273]
+
 * Thu Jun 18 2026 Phil Sutter <psutter@redhat.com> [1.8.11-15.el10]
 - spec: Recommend kernel-modules-extra only if no other recommendation applies (Phil Sutter) [RHEL-186232]
 
